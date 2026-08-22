@@ -14,9 +14,11 @@ import {
   X
 } from 'lucide-react';
 import { InventoryItem } from '../types';
+import { formatCurrencyAmount } from '../data/currencies';
 
 interface ItemsViewProps {
   items: InventoryItem[];
+  currencySymbol?: string;
   onAddItem: (item: InventoryItem) => void;
   onEditItem: (item: InventoryItem) => void;
   onDeleteItem: (itemId: string) => void;
@@ -25,6 +27,7 @@ interface ItemsViewProps {
 
 export const ItemsView: React.FC<ItemsViewProps> = ({
   items,
+  currencySymbol = '₦',
   onAddItem,
   onEditItem,
   onDeleteItem,
@@ -245,7 +248,7 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
                   </td>
 
                   <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
-                    ${it.unitPrice.toFixed(2)}
+                    {formatCurrencyAmount(it.unitPrice, currencySymbol)}
                   </td>
 
                   <td className="py-3.5 px-4 text-center font-mono text-slate-600">

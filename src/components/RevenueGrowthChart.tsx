@@ -30,6 +30,7 @@ import { parseDateSafe } from '../utils/dateUtils';
 
 interface RevenueGrowthChartProps {
   invoices: Invoice[];
+  currencySymbol?: string;
   onNavigateToReports?: () => void;
   onNavigateToInvoices?: () => void;
 }
@@ -52,6 +53,7 @@ interface MonthDataPoint {
 
 export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
   invoices,
+  currencySymbol = '₦',
   onNavigateToReports,
   onNavigateToInvoices,
 }) => {
@@ -223,7 +225,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
                 <span>Paid Revenue:</span>
               </span>
               <span className="font-bold text-emerald-400">
-                ${dataPoint.paidRevenue.toLocaleString()}
+                {currencySymbol}{dataPoint.paidRevenue.toLocaleString()}
               </span>
             </div>
 
@@ -233,7 +235,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
                 <span>Gross Invoiced:</span>
               </span>
               <span className="font-bold text-blue-400">
-                ${dataPoint.invoicedTotal.toLocaleString()}
+                {currencySymbol}{dataPoint.invoicedTotal.toLocaleString()}
               </span>
             </div>
 
@@ -241,7 +243,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
               <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-slate-300">
                 <span className="text-slate-400">Cumulative Paid:</span>
                 <span className="font-semibold text-slate-200">
-                  ${dataPoint.cumulativePaid.toLocaleString()}
+                  {currencySymbol}{dataPoint.cumulativePaid.toLocaleString()}
                 </span>
               </div>
             )}
@@ -347,7 +349,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
             Collected ({timeframe.toUpperCase()})
           </div>
           <div className="text-lg font-black text-slate-900 font-mono-data mt-0.5">
-            ${totalPaidInPeriod.toLocaleString()}
+            {currencySymbol}{totalPaidInPeriod.toLocaleString()}
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5">Total settled revenue</div>
         </div>
@@ -357,7 +359,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
             Monthly Average
           </div>
           <div className="text-lg font-black text-slate-900 font-mono-data mt-0.5">
-            ${avgMonthlyRevenue.toLocaleString()}
+            {currencySymbol}{avgMonthlyRevenue.toLocaleString()}
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5">Mean monthly cashflow</div>
         </div>
@@ -393,7 +395,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
             {bestMonth ? bestMonth.label : 'N/A'}
           </div>
           <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-            ${bestMonth ? bestMonth.paidRevenue.toLocaleString() : '0'} collected
+            {currencySymbol}{bestMonth ? bestMonth.paidRevenue.toLocaleString() : '0'} collected
           </div>
         </div>
       </div>
@@ -424,7 +426,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
                 tickLine={false} 
                 axisLine={false} 
                 tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }} 
-                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} 
+                tickFormatter={(val) => `${currencySymbol}${(val / 1000).toFixed(0)}k`} 
               />
               <Tooltip content={<CustomTooltip />} />
               <Area
@@ -461,7 +463,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
                 tickLine={false} 
                 axisLine={false} 
                 tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }} 
-                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} 
+                tickFormatter={(val) => `${currencySymbol}${(val / 1000).toFixed(0)}k`} 
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar 
@@ -498,7 +500,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
                 tickLine={false} 
                 axisLine={false} 
                 tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }} 
-                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} 
+                tickFormatter={(val) => `${currencySymbol}${(val / 1000).toFixed(0)}k`} 
               />
               <Tooltip content={<CustomTooltip />} />
               <Area

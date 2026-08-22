@@ -15,14 +15,17 @@ import {
   ChevronRight,
   ExternalLink
 } from 'lucide-react';
-import { Invoice, Estimate, InventoryItem, Activity, NavigationTab } from '../types';
+import { Invoice, Estimate, InventoryItem, Activity, NavigationTab, CompanyProfile } from '../types';
 import { RevenueGrowthChart } from './RevenueGrowthChart';
+import { formatCurrencyAmount } from '../data/currencies';
 
 interface DashboardViewProps {
   invoices: Invoice[];
   estimates: Estimate[];
   items: InventoryItem[];
   activities: Activity[];
+  companyProfile?: CompanyProfile;
+  currencySymbol?: string;
   onNavigate: (tab: NavigationTab) => void;
   onOpenCreateInvoice: () => void;
   onOpenCreateEstimate: () => void;
@@ -36,6 +39,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   estimates,
   items,
   activities,
+  companyProfile,
+  currencySymbol = companyProfile?.currencySymbol || '₦',
   onNavigate,
   onOpenCreateInvoice,
   onOpenCreateEstimate,
@@ -135,7 +140,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-black text-slate-900 font-mono-data">
-              ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrencyAmount(totalOutstanding, currencySymbol)}
             </span>
           </div>
           <div className="mt-2 text-xs text-amber-700 font-medium flex items-center gap-1.5">
@@ -160,14 +165,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-black text-slate-900 font-mono-data">
-              ${revenueThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrencyAmount(revenueThisMonth, currencySymbol)}
             </span>
             <span className="text-xs font-semibold text-emerald-600 flex items-center">
               <TrendingUp className="w-3 h-3 mr-0.5" /> +12%
             </span>
           </div>
           <div className="mt-2 text-xs text-slate-500">
-            Target: $20,000 (76% achieved)
+            Target: {formatCurrencyAmount(20000, currencySymbol, false)} (76% achieved)
           </div>
         </div>
 
@@ -203,6 +208,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="lg:col-span-2">
           <RevenueGrowthChart
             invoices={invoices}
+            currencySymbol={currencySymbol}
             onNavigateToReports={() => onNavigate('reports')}
             onNavigateToInvoices={() => onNavigate('invoices')}
           />
@@ -271,7 +277,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span>Paid ({paidInvoices.length})</span>
                 </span>
                 <span className="font-mono font-bold text-slate-900">
-                  ${paidInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
+                  {formatCurrencyAmount(paidInvoices.reduce((a, b) => a + b.total, 0), currencySymbol, false)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-700">
@@ -280,7 +286,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span>Pending ({pendingInvoices.length})</span>
                 </span>
                 <span className="font-mono font-bold text-slate-900">
-                  ${pendingInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
+                  {formatCurrencyAmount(pendingInvoices.reduce((a, b) => a + b.total, 0), currencySymbol, false)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-700">
@@ -289,7 +295,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span>Overdue ({overdueInvoices.length})</span>
                 </span>
                 <span className="font-mono font-bold text-slate-900">
-                  ${overdueInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
+                  {formatCurrencyAmount(overdueInvoices.reduce((a, b) => a + b.total, 0), currencySymbol, false)}
                 </span>
               </div>
             </div>
@@ -347,7 +353,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {inv.dueDate}
                     </td>
                     <td className="py-3 text-right font-mono font-bold text-slate-900">
-                      ${inv.total.toFixed(2)}
+                      {formatCurrencyAmount(inv.total, currencySymbol)}
                     </td>
                     <td className="py-3 text-center">
                       <span

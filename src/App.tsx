@@ -97,7 +97,19 @@ export function App() {
   
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(() => {
     const saved = localStorage.getItem('invoicepro_company');
-    return saved ? JSON.parse(saved) : initialCompanyProfile;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // If parsed currency was missing or old USD default, default to NGN / ₦
+        return {
+          ...initialCompanyProfile,
+          ...parsed,
+          currency: parsed.currency && parsed.currency !== 'USD' ? parsed.currency : (parsed.currency === 'USD' && initialCompanyProfile.currency === 'NGN' ? 'NGN' : (parsed.currency || 'NGN')),
+          currencySymbol: parsed.currencySymbol && parsed.currencySymbol !== '$' ? parsed.currencySymbol : (parsed.currencySymbol === '$' && initialCompanyProfile.currencySymbol === '₦' ? '₦' : (parsed.currencySymbol || '₦')),
+        };
+      } catch (e) {}
+    }
+    return initialCompanyProfile;
   });
   
   const [taxRates, setTaxRates] = useState<TaxRate[]>(() => {
@@ -1171,6 +1183,8 @@ export function App() {
               estimates={estimates}
               items={items}
               activities={activities}
+              companyProfile={companyProfile}
+              currencySymbol={companyProfile.currencySymbol}
               onNavigate={setCurrentTab}
               onOpenCreateInvoice={() => {
                 setEditingInvoiceData(undefined);
@@ -1385,6 +1399,8 @@ export function App() {
             <ClientsView
               clients={clients}
               invoices={invoices}
+              companyProfile={companyProfile}
+              currencySymbol={companyProfile.currencySymbol}
               onAddClient={handleAddClient}
               onEditClient={handleEditClient}
               onDeleteClient={handleDeleteClient}
@@ -1409,6 +1425,7 @@ export function App() {
           {currentTab === 'items' && (
             <ItemsView
               items={items}
+              currencySymbol={companyProfile.currencySymbol}
               onAddItem={handleAddItem}
               onEditItem={handleEditItem}
               onDeleteItem={handleDeleteItem}
@@ -1421,6 +1438,8 @@ export function App() {
               invoices={invoices}
               clients={clients}
               taxRates={taxRates}
+              companyProfile={companyProfile}
+              currencySymbol={companyProfile.currencySymbol}
             />
           )}
 
