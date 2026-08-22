@@ -21,7 +21,12 @@ import {
   PurchaseOrder,
   PurchaseOrderStatus,
   OtherIncome,
-  Expense
+  Expense,
+  DeliveryNote,
+  DeliveryStatus,
+  CreditNote,
+  CreditNoteStatus,
+  AppSettings
 } from './types';
 import { 
   initialCompanyProfile, 
@@ -40,7 +45,10 @@ import {
   initialPurchaseReturns,
   initialPurchaseOrders,
   initialOtherIncomes,
-  initialExpenses
+  initialExpenses,
+  initialDeliveryNotes,
+  initialCreditNotes,
+  initialAppSettings
 } from './data/mockData';
 
 // Components
@@ -66,6 +74,8 @@ import { PurchasesView } from './components/PurchasesView';
 import { PurchaseOrdersView } from './components/PurchaseOrdersView';
 import { OtherIncomeView } from './components/OtherIncomeView';
 import { ExpensesView } from './components/ExpensesView';
+import { DeliveryNotesView } from './components/DeliveryNotesView';
+import { CreditNotesView } from './components/CreditNotesView';
 
 // Modals
 import { ConvertToInvoiceModal } from './components/ConvertToInvoiceModal';
@@ -171,6 +181,21 @@ export function App() {
     return saved ? JSON.parse(saved) : initialExpenses;
   });
 
+  const [deliveryNotes, setDeliveryNotes] = useState<DeliveryNote[]>(() => {
+    const saved = localStorage.getItem('invoicepro_delivery_notes');
+    return saved ? JSON.parse(saved) : initialDeliveryNotes;
+  });
+
+  const [creditNotes, setCreditNotes] = useState<CreditNote[]>(() => {
+    const saved = localStorage.getItem('invoicepro_credit_notes');
+    return saved ? JSON.parse(saved) : initialCreditNotes;
+  });
+
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => {
+    const saved = localStorage.getItem('invoicepro_app_settings');
+    return saved ? JSON.parse(saved) : initialAppSettings;
+  });
+
   // Modal & View States
   const [selectedInvoiceForSend, setSelectedInvoiceForSend] = useState<Invoice | null>(null);
   const [editingInvoiceData, setEditingInvoiceData] = useState<Partial<Invoice> | undefined>(undefined);
@@ -262,6 +287,15 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('invoicepro_expenses', JSON.stringify(expenses));
   }, [expenses]);
+  useEffect(() => {
+    localStorage.setItem('invoicepro_delivery_notes', JSON.stringify(deliveryNotes));
+  }, [deliveryNotes]);
+  useEffect(() => {
+    localStorage.setItem('invoicepro_credit_notes', JSON.stringify(creditNotes));
+  }, [creditNotes]);
+  useEffect(() => {
+    localStorage.setItem('invoicepro_app_settings', JSON.stringify(appSettings));
+  }, [appSettings]);
 
   // Toast Helper
   const showToast = (title: string, description?: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -995,6 +1029,62 @@ export function App() {
     showToast('Expense Removed', 'Expense voucher removed.', 'info');
   };
 
+  // Delivery Notes
+  const handleAddDeliveryNote = (note: DeliveryNote) => {
+    setDeliveryNotes((prev) => [note, ...prev]);
+    showToast('Delivery Note Dispatched', `Delivery Note ${note.noteNumber} created for ${note.clientName}.`);
+  };
+
+  const handleUpdateDeliveryNote = (updatedNote: DeliveryNote) => {
+    setDeliveryNotes((prev) => prev.map((d) => (d.id === updatedNote.id ? updatedNote : d)));
+    showToast('Delivery Note Updated', `Note ${updatedNote.noteNumber} updated successfully.`);
+  };
+
+  const handleDeleteDeliveryNote = (id: string) => {
+    setDeliveryNotes((prev) => prev.filter((d) => d.id !== id));
+    showToast('Delivery Note Removed', 'Delivery record deleted.', 'info');
+  };
+
+  // Credit Notes
+  const handleAddCreditNote = (note: CreditNote) => {
+    setCreditNotes((prev) => [note, ...prev]);
+    showToast('Credit Note Issued', `Credit Note ${note.creditNoteNumber} logged for ${note.clientName}.`);
+  };
+
+  const handleUpdateCreditNote = (updatedNote: CreditNote) => {
+    setCreditNotes((prev) => prev.map((c) => (c.id === updatedNote.id ? updatedNote : c)));
+    showToast('Credit Note Updated', `Credit note ${updatedNote.creditNoteNumber} updated.`);
+  };
+
+  const handleDeleteCreditNote = (id: string) => {
+    setCreditNotes((prev) => prev.filter((c) => c.id !== id));
+    showToast('Credit Note Removed', 'Credit note record removed.', 'info');
+  };
+
+  // Bulk Importers & Disaster Recovery
+  const handleBulkImportClients = (newClients: Client[]) => {
+    setClients((prev) => [...newClients, ...prev]);
+    showToast('Batch Import Complete', `Added ${newClients.length} clients to master directory.`);
+  };
+
+  const handleBulkImportItems = (newItems: InventoryItem[]) => {
+    setItems((prev) => [...newItems, ...prev]);
+    showToast('Batch Import Complete', `Added ${newItems.length} items to inventory catalog.`);
+  };
+
+  const handleRestoreFullBackup = (backupData: any) => {
+    if (backupData.companyProfile) setCompanyProfile(backupData.companyProfile);
+    if (backupData.appSettings) setAppSettings(backupData.appSettings);
+    if (backupData.taxRates) setTaxRates(backupData.taxRates);
+    if (backupData.invoices) setInvoices(backupData.invoices);
+    if (backupData.clients) setClients(backupData.clients);
+    if (backupData.items) setItems(backupData.items);
+    if (backupData.payments) setPayments(backupData.payments);
+    if (backupData.deliveryNotes) setDeliveryNotes(backupData.deliveryNotes);
+    if (backupData.creditNotes) setCreditNotes(backupData.creditNotes);
+    showToast('System Restored', 'Complete database recovered from JSON backup snapshot.');
+  };
+
   // Due recurring count calculation
   const dueRecurringCount = recurringSchedules.filter((s) => isScheduleDue(s)).length;
   const lowStockCount = items.filter((i) => i.stock <= i.lowStockThreshold).length;
@@ -1049,6 +1139,9 @@ export function App() {
         saleOrderCount={saleOrders.length}
         paymentCount={payments.length}
         purchaseCount={purchases.length}
+        deliveryNoteCount={deliveryNotes.length}
+        creditNoteCount={creditNotes.length}
+        hiddenTabs={appSettings.hiddenTabs}
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
       />
 
@@ -1133,6 +1226,32 @@ export function App() {
               onSendEstimate={(est) => {
                 showToast('Estimate Sent', `Email with quote PDF dispatched to ${est.clientEmail}`);
               }}
+            />
+          )}
+
+          {currentTab === 'delivery_notes' && (
+            <DeliveryNotesView
+              deliveryNotes={deliveryNotes}
+              clients={clients}
+              invoices={invoices}
+              saleOrders={saleOrders}
+              onAddDeliveryNote={handleAddDeliveryNote}
+              onUpdateDeliveryNote={handleUpdateDeliveryNote}
+              onDeleteDeliveryNote={handleDeleteDeliveryNote}
+              currencySymbol={companyProfile.currencySymbol}
+            />
+          )}
+
+          {currentTab === 'credit_notes' && (
+            <CreditNotesView
+              creditNotes={creditNotes}
+              invoices={invoices}
+              clients={clients}
+              onAddCreditNote={handleAddCreditNote}
+              onUpdateCreditNote={handleUpdateCreditNote}
+              onDeleteCreditNote={handleDeleteCreditNote}
+              currencyCode={companyProfile.currency}
+              currencySymbol={companyProfile.currencySymbol}
             />
           )}
 
@@ -1308,15 +1427,29 @@ export function App() {
           {currentTab === 'settings' && (
             <SettingsView
               companyProfile={companyProfile}
+              appSettings={appSettings}
               taxRates={taxRates}
+              invoices={invoices}
+              clients={clients}
+              items={items}
+              payments={payments}
+              deliveryNotes={deliveryNotes}
+              creditNotes={creditNotes}
               onUpdateCompanyProfile={(prof) => {
                 setCompanyProfile(prof);
                 showToast('Settings Saved', 'Company profile and default currency updated.');
+              }}
+              onUpdateAppSettings={(newSettings) => {
+                setAppSettings(newSettings);
+                showToast('Preferences Saved', 'Enterprise settings and layout rules updated.');
               }}
               onAddTaxRate={handleAddTaxRate}
               onDeleteTaxRate={handleDeleteTaxRate}
               onSetDefaultTaxRate={handleSetDefaultTaxRate}
               onLaunchOnboarding={() => setIsOnboardingOpen(true)}
+              onRestoreFullBackup={handleRestoreFullBackup}
+              onBulkImportClients={handleBulkImportClients}
+              onBulkImportItems={handleBulkImportItems}
             />
           )}
         </main>

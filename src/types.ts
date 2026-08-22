@@ -5,6 +5,8 @@ export type NavigationTab =
   | 'create_invoice'
   | 'estimates'
   | 'send_invoice'
+  | 'delivery_notes'
+  | 'credit_notes'
   | 'items'
   | 'clients'
   | 'reports'
@@ -352,3 +354,199 @@ export interface Expense {
   status: ExpenseStatus;
   notes?: string;
 }
+
+// Delivery Note Types
+export type DeliveryStatus = 'draft' | 'dispatched' | 'in_transit' | 'delivered' | 'returned';
+
+export interface DeliveryItem {
+  id: string;
+  itemId?: string;
+  sku?: string;
+  description: string;
+  orderedQty: number;
+  deliveredQty: number;
+  unit: string;
+  packageDetails?: string;
+}
+
+export interface DeliveryNote {
+  id: string;
+  noteNumber: string;
+  invoiceNumber?: string;
+  saleOrderNumber?: string;
+  clientName: string;
+  clientEmail: string;
+  clientPhone?: string;
+  deliveryAddress: string;
+  dispatchDate: string;
+  expectedDeliveryDate: string;
+  actualDeliveryDate?: string;
+  carrierName: string;
+  trackingNumber: string;
+  driverName?: string;
+  driverPhone?: string;
+  vehicleNumber?: string;
+  packagesCount: number;
+  totalWeightKg?: number;
+  items: DeliveryItem[];
+  status: DeliveryStatus;
+  receivedBy?: string;
+  receiverSignature?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+// Credit Note Types
+export type CreditNoteStatus = 'issued' | 'applied' | 'refunded' | 'void';
+export type CreditReason = 
+  | 'Damaged / Defective Goods' 
+  | 'Pricing Error / Overbilled' 
+  | 'Order Cancellation / Return' 
+  | 'Post-Sale Discount / Rebate' 
+  | 'Service Quality Issue' 
+  | 'Other';
+
+export interface CreditNote {
+  id: string;
+  creditNoteNumber: string;
+  originalInvoiceNumber: string;
+  clientName: string;
+  clientEmail: string;
+  clientAddress: string;
+  issueDate: string;
+  reason: CreditReason;
+  items: LineItem[];
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  remainingCredit: number;
+  status: CreditNoteStatus;
+  appliedToInvoiceId?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+// Bank Account Information
+export interface BankAccountInfo {
+  id: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  sortCode?: string;
+  iban?: string;
+  swiftBic?: string;
+  isPrimary: boolean;
+  paymentInstructions?: string;
+}
+
+// Extended Application Settings
+export interface AppSettings {
+  // 1. Customize Home Screen (Visual Layout | Show/Hide Tabs)
+  hiddenTabs: NavigationTab[];
+  compactDensity: boolean;
+  defaultLandingTab: NavigationTab;
+  sidebarTheme: 'dark' | 'midnight' | 'slate' | 'emerald';
+  dashboardWidgets: {
+    quickStats: boolean;
+    revenueChart: boolean;
+    recentActivity: boolean;
+    lowStockAlerts: boolean;
+    upcomingRecurring: boolean;
+    cashflowSummary: boolean;
+  };
+
+  // 2. Discount & Tax Settings
+  enableItemDiscounts: boolean;
+  enableInvoiceDiscounts: boolean;
+  maxDiscountPercent: number;
+  taxMode: 'exclusive' | 'inclusive';
+  taxLabel: string;
+  enableWithholdingTax: boolean;
+  withholdingTaxRate: number;
+
+  // 3. Language & Localization
+  language: 'en' | 'fr' | 'es' | 'de' | 'ar' | 'pt' | 'zh' | 'yo' | 'ha' | 'ig';
+  dateFormat: 'YYYY-MM-DD' | 'DD/MM/YYYY' | 'MM/DD/YYYY';
+  numberFormat: 'standard' | 'european' | 'indian';
+  rtlEnabled: boolean;
+
+  // 4. Invoice & Billing Settings
+  documentPreferences: {
+    invoicePrefix: string;
+    estimatePrefix: string;
+    deliveryNotePrefix: string;
+    creditNotePrefix: string;
+    saleOrderPrefix: string;
+    purchasePrefix: string;
+    defaultDueDays: number;
+    autoIncrementNumber: boolean;
+    roundTotalMethod: 'none' | 'nearest_whole' | 'round_up';
+  };
+  templateSettings: {
+    templateStyle: 'classic' | 'modern' | 'minimalist' | 'thermal_pos' | 'executive';
+    primaryAccentColor: string;
+    fontFamily: string;
+    showWatermark: boolean;
+    showCompanyLogo: boolean;
+    showSignature: boolean;
+    showStamp: boolean;
+  };
+  invoiceHeaderFooter: {
+    invoiceTitle: string;
+    headerSubtitle: string;
+    footerDisclaimer: string;
+    footerDeclaration: string;
+    showQrCodeVerification: boolean;
+  };
+  bankAccounts: BankAccountInfo[];
+  termsAndConditions: {
+    defaultTerms: string;
+    paymentPolicy: string;
+    returnPolicy: string;
+    warrantyNotice: string;
+  };
+  manageFields: {
+    showSku: boolean;
+    showUnit: boolean;
+    showDiscount: boolean;
+    showTaxRate: boolean;
+    showHsnSac: boolean;
+    showItemImage: boolean;
+    showBatchNumber: boolean;
+    customField1Label: string;
+    customField2Label: string;
+  };
+
+  // 5. Hardware & Devices
+  printerSettings: {
+    paperSize: 'A4' | 'Letter' | 'A5' | 'Thermal 80mm' | 'Thermal 58mm';
+    autoPrintOnSave: boolean;
+    printMargins: 'normal' | 'narrow' | 'borderless';
+    silentPrinting: boolean;
+    printerName: string;
+  };
+  barcodeScannerSettings: {
+    enableCameraScanner: boolean;
+    enableUsbWedge: boolean;
+    soundOnScan: boolean;
+    scanAction: 'lookup' | 'add_to_cart' | 'view_details';
+  };
+
+  // 6. Data & Online Management
+  autoBackupInterval: 'daily' | 'weekly' | 'monthly' | 'disabled';
+  cloudStorage: {
+    googleDriveConnected: boolean;
+    googleDriveEmail?: string;
+    dropboxConnected: boolean;
+    dropboxEmail?: string;
+    autoSyncEnabled: boolean;
+    lastSyncTimestamp?: string;
+  };
+  imageAssets: {
+    logoUrl?: string;
+    signatureUrl?: string;
+    stampUrl?: string;
+    watermarkUrl?: string;
+  };
+}
+

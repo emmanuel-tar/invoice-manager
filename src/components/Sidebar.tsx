@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   LayoutDashboard, 
   FileText, 
-  Repeat,
+  Repeat, 
   FileSpreadsheet, 
   Users, 
   Package, 
@@ -20,7 +20,9 @@ import {
   ChevronRight,
   ChevronDown,
   Layers,
-  Plus
+  Plus,
+  Truck,
+  FileMinus
 } from 'lucide-react';
 import { NavigationTab } from '../types';
 
@@ -34,7 +36,24 @@ interface SidebarProps {
   saleOrderCount?: number;
   paymentCount?: number;
   purchaseCount?: number;
+  deliveryNoteCount?: number;
+  creditNoteCount?: number;
+  hiddenTabs?: NavigationTab[];
   onOpenOnboarding: () => void;
+}
+
+interface NavItem {
+  id: NavigationTab;
+  label: string;
+  icon: any;
+  badge?: string | number | null;
+  badgeColor?: string;
+  subItems?: { label: string; tab: NavigationTab }[];
+}
+
+interface NavGroup {
+  groupTitle: string;
+  items: NavItem[];
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -47,12 +66,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
   saleOrderCount = 0,
   paymentCount = 0,
   purchaseCount = 0,
+  deliveryNoteCount = 0,
+  creditNoteCount = 0,
+  hiddenTabs = [],
   onOpenOnboarding,
 }) => {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     payments: true,
     purchases: true,
     estimates: true,
+    delivery_notes: true,
+    credit_notes: true,
   });
 
   const toggleSection = (id: string, e: React.MouseEvent) => {
@@ -60,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const navGroups = [
+  const navGroups: NavGroup[] = [
     {
       groupTitle: 'Sales & Billing',
       items: [
@@ -85,6 +109,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
             { label: 'Estimate List', tab: 'estimates' as NavigationTab },
             { label: 'Add New', tab: 'estimates' as NavigationTab },
             { label: 'Quick Estimate', tab: 'estimates' as NavigationTab },
+          ]
+        },
+        {
+          id: 'delivery_notes' as NavigationTab,
+          label: 'Delivery Notes',
+          icon: Truck,
+          badge: deliveryNoteCount > 0 ? deliveryNoteCount : null,
+          subItems: [
+            { label: 'Delivery Note List', tab: 'delivery_notes' as NavigationTab },
+            { label: 'Create Delivery Note', tab: 'delivery_notes' as NavigationTab },
+          ]
+        },
+        {
+          id: 'credit_notes' as NavigationTab,
+          label: 'Credit Notes',
+          icon: FileMinus,
+          badge: creditNoteCount > 0 ? creditNoteCount : null,
+          subItems: [
+            { label: 'Credit Note List', tab: 'credit_notes' as NavigationTab },
+            { label: 'Create Credit Note', tab: 'credit_notes' as NavigationTab },
           ]
         },
         {
@@ -237,13 +281,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation List */}
       <div className="flex-1 px-3 py-3 space-y-4 overflow-y-auto custom-scrollbar">
-        {navGroups.map((group) => (
-          <div key={group.groupTitle} className="space-y-1">
-            <div className="px-2.5 py-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono">
-              {group.groupTitle}
-            </div>
+        {navGroups.map((group) => {
+          const visibleItems = group.items.filter((item) => !hiddenTabs.includes(item.id));
+          if (visibleItems.length === 0) return null;
 
-            {group.items.map((item) => {
+          return (
+            <div key={group.groupTitle} className="space-y-1">
+              <div className="px-2.5 py-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono">
+                {group.groupTitle}
+              </div>
+
+              {visibleItems.map((item) => {
               const Icon = item.icon;
               const isActive = 
                 currentTab === item.id || 
@@ -311,7 +359,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               );
             })}
           </div>
-        ))}
+          );
+        })}
 
         {/* Quick Guided Setup */}
         <div className="pt-2 px-1">
