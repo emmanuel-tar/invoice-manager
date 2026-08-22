@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-dark: #1e40af;
+  --primary-light: #eff6ff;
+  --primary-border: #bfdbfe;
+  
+  --sidebar-bg: #0f172a;
+  --sidebar-surface: #1e293b;
+  --sidebar-border: #334155;
+  --sidebar-text: #f1f5f9;
+  --sidebar-muted: #94a3b8;
+  
+  --app-bg: #f8fafc;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  
+  --text-main: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  
+  --success: #10b981;
+  --success-light: #ecfdf5;
+  --warning: #f59e0b;
+  --warning-light: #fffbeb;
+  --danger: #ef4444;
+  --danger-light: #fef2f2;
+}
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #0f172a;
+    background-color: #f8fafc;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+.font-mono-data {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Custom polished scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Professional Polish Animations and Component Classes */
+.card-polished {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+}
+
+.card-polished-interactive {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-polished-interactive:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+}
+
+@media print {
+  aside, header, .no-print {
+    display: none !important;
+  }
+  main, .print-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    background: white !important;
+  }
+}
+
+/* Rich Notes Editor & Rendered Content Styling */
+.rich-notes-editor:empty:before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  cursor: text;
+}
+
+.rich-notes-content h1, .rich-notes-editor h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  color: #0f172a;
+}
+
+.rich-notes-content h2, .rich-notes-editor h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  color: #0f172a;
+}
+
+.rich-notes-content h3, .rich-notes-editor h3 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-top: 0.35rem;
+  margin-bottom: 0.2rem;
+  color: #1e293b;
+}
+
+.rich-notes-content p, .rich-notes-editor p {
+  margin-bottom: 0.35rem;
+  line-height: 1.5;
+}
+
+.rich-notes-content ul, .rich-notes-editor ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin-bottom: 0.35rem;
+}
+
+.rich-notes-content ol, .rich-notes-editor ol {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+  margin-bottom: 0.35rem;
+}
+
+.rich-notes-content li, .rich-notes-editor li {
+  margin-bottom: 0.15rem;
+}
+
+.rich-notes-content blockquote, .rich-notes-editor blockquote {
+  border-left: 3px solid #3b82f6;
+  padding-left: 0.75rem;
+  margin: 0.35rem 0;
+  color: #475569;
+  font-style: italic;
+  background-color: #f8fafc;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+
+.rich-notes-content mark, .rich-notes-editor mark {
+  background-color: #fef08a;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.2rem;
+  color: #854d0e;
+}
+
+
+

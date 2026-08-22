@@ -1,0 +1,6 @@
+{
+  "name": "InvoicePro",
+  "description": "Professional SaaS invoicing, estimate conversion, client tracking, and financial reporting suite.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
