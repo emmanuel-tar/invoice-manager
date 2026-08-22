@@ -170,11 +170,15 @@ export function calculateDueDate(issueDateStr: string, paymentTermsDays: number)
 /**
  * Checks whether a schedule is currently due for invoice generation
  */
-export function isScheduleDue(nextBillingDateStr: string): boolean {
+export function isScheduleDue(scheduleOrDateStr: RecurringSchedule | string): boolean {
+  const dateStr = typeof scheduleOrDateStr === 'string' ? scheduleOrDateStr : scheduleOrDateStr.nextBillingDate;
+  if (!dateStr) return false;
+  if (typeof scheduleOrDateStr !== 'string' && scheduleOrDateStr.status !== 'active') return false;
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const billingDate = new Date(nextBillingDateStr);
+  const billingDate = new Date(dateStr);
   billingDate.setHours(0, 0, 0, 0);
 
   return billingDate <= today;
