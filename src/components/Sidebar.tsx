@@ -22,7 +22,8 @@ import {
   Layers,
   Plus,
   Truck,
-  FileMinus
+  FileMinus,
+  AlertTriangle
 } from 'lucide-react';
 import { NavigationTab } from '../types';
 
@@ -33,6 +34,7 @@ interface SidebarProps {
   recurringCount?: number;
   estimateCount: number;
   lowStockCount: number;
+  outOfStockCount?: number;
   saleOrderCount?: number;
   paymentCount?: number;
   purchaseCount?: number;
@@ -46,8 +48,11 @@ interface NavItem {
   id: NavigationTab;
   label: string;
   icon: any;
-  badge?: string | number | null;
+  badge?: React.ReactNode | string | number | null;
   badgeColor?: string;
+  isAlert?: boolean;
+  alertType?: 'warning' | 'danger';
+  alertTooltip?: string;
   subItems?: { label: string; tab: NavigationTab }[];
 }
 
@@ -63,6 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   recurringCount = 0,
   estimateCount,
   lowStockCount,
+  outOfStockCount = 0,
   saleOrderCount = 0,
   paymentCount = 0,
   purchaseCount = 0,
@@ -201,8 +207,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'items' as NavigationTab,
           label: 'Items & Catalog',
           icon: Package,
-          badge: lowStockCount > 0 ? `${lowStockCount} low` : null,
-          badgeColor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+          isAlert: lowStockCount > 0,
+          alertType: outOfStockCount > 0 ? 'danger' : 'warning',
+          alertTooltip: lowStockCount > 0 
+            ? `${lowStockCount} item(s) below low-stock threshold${outOfStockCount > 0 ? ` (${outOfStockCount} out of stock)` : ''}`
+            : undefined,
+          badge: lowStockCount > 0 ? (
+            <span
+              id="badge-sidebar-low-stock"
+              className={`inline-flex items-center gap-1 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full shadow-xs transition-all whitespace-nowrap ${
+                currentTab === 'items'
+                  ? 'bg-amber-300 text-slate-950 border border-amber-200 shadow-sm'
+                  : outOfStockCount > 0
+                  ? 'bg-rose-500/25 text-rose-300 border border-rose-500/40 hover:bg-rose-500/35'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+              }`}
+              title={`${lowStockCount} item(s) below reorder threshold${outOfStockCount > 0 ? ` (${outOfStockCount} completely out of stock)` : ''}`}
+            >
+              <span className="relative flex h-1.5 w-1.5 shrink-0">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                  outOfStockCount > 0 ? 'bg-rose-400' : 'bg-amber-400'
+                }`}></span>
+                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                  outOfStockCount > 0 ? 'bg-rose-500' : 'bg-amber-400'
+                }`}></span>
+              </span>
+              <AlertTriangle className={`w-3 h-3 shrink-0 ${currentTab === 'items' ? 'text-slate-950' : outOfStockCount > 0 ? 'text-rose-400' : 'text-amber-400'}`} />
+              <span>Low Stock ({lowStockCount})</span>
+            </span>
+          ) : null,
         },
         {
           id: 'batch_tracking' as NavigationTab,
@@ -297,22 +330,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 currentTab === item.id || 
                 (item.id === 'invoices' && (currentTab === 'create_invoice' || currentTab === 'send_invoice'));
               const isExpanded = expandedSections[item.id];
+              const isAlertItem = Boolean(item.isAlert && !isActive);
 
               return (
                 <div key={item.id} className="space-y-0.5">
                   <button
                     id={`nav-btn-${item.id}`}
                     onClick={() => onSelectTab(item.id)}
+                    title={item.alertTooltip || item.label}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 group relative ${
                       isActive
                         ? 'bg-blue-600 text-white font-bold shadow-sm'
-                        : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+                        : isAlertItem
+                        ? item.alertType === 'danger'
+                          ? 'text-rose-200 bg-rose-950/30 border border-rose-500/40 hover:bg-rose-900/40 hover:border-rose-500/60 shadow-xs'
+                          : 'text-amber-200 bg-amber-950/25 border border-amber-500/35 hover:bg-amber-900/35 hover:border-amber-500/60 shadow-xs'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-800/70 border border-transparent'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 truncate">
                       <Icon
                         className={`w-4 h-4 shrink-0 transition-colors ${
-                          isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
+                          isActive 
+                            ? 'text-white' 
+                            : isAlertItem 
+                            ? item.alertType === 'danger'
+                              ? 'text-rose-400 group-hover:text-rose-300'
+                              : 'text-amber-400 group-hover:text-amber-300'
+                            : 'text-slate-400 group-hover:text-slate-200'
                         }`}
                       />
                       <span className="truncate">{item.label}</span>
@@ -320,13 +365,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     <div className="flex items-center gap-1.5 shrink-0">
                       {item.badge && (
-                        <span
-                          className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full ${
-                            item.badgeColor || (isActive ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300 border border-slate-700')
-                          }`}
-                        >
-                          {item.badge}
-                        </span>
+                        typeof item.badge === 'string' || typeof item.badge === 'number' ? (
+                          <span
+                            className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full ${
+                              item.badgeColor || (isActive ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300 border border-slate-700')
+                            }`}
+                          >
+                            {item.badge}
+                          </span>
+                        ) : (
+                          item.badge
+                        )
                       )}
 
                       {item.subItems && (

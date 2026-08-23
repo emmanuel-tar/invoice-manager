@@ -87,9 +87,16 @@ import { CreateEstimateModal } from './components/CreateEstimateModal';
 import { CreateRecurringScheduleModal } from './components/CreateRecurringScheduleModal';
 import { AddClientModal } from './components/AddClientModal';
 import { ClientPortalView } from './components/ClientPortalView';
+import { PublicInvoiceView } from './components/PublicInvoiceView';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { generateInvoiceFromSchedule, isScheduleDue } from './utils/recurringUtils';
 import { extractPortalTokenFromUrl, getClientByPortalToken } from './utils/portalUtils';
+import { 
+  extractPaymentTokenFromUrl, 
+  findInvoiceByPaymentToken, 
+  ensureInvoicePaymentToken, 
+  generatePaymentToken 
+} from './utils/paymentTokenUtils';
 
 export function App() {
   // Main Data States with localStorage persistence
@@ -119,7 +126,8 @@ export function App() {
   
   const [invoices, setInvoices] = useState<Invoice[]>(() => {
     const saved = localStorage.getItem('invoicepro_invoices');
-    return saved ? JSON.parse(saved) : initialInvoices;
+    const base = saved ? JSON.parse(saved) : initialInvoices;
+    return base.map((inv: Invoice) => ensureInvoicePaymentToken(inv));
   });
   
   const [estimates, setEstimates] = useState<Estimate[]>(() => {
@@ -224,28 +232,41 @@ export function App() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [portalClient, setPortalClient] = useState<Client | null>(null);
   const [isDirectPortalMode, setIsDirectPortalMode] = useState<boolean>(false);
+  const [publicInvoiceToken, setPublicInvoiceToken] = useState<string | null>(null);
+  const [isDirectInvoicePayMode, setIsDirectInvoicePayMode] = useState<boolean>(false);
 
-  // Check URL parameters for direct client portal
+  // Check URL parameters for direct client portal or public invoice payment
   useEffect(() => {
-    const checkUrlForPortal = () => {
-      const token = extractPortalTokenFromUrl();
-      if (token) {
-        const matched = getClientByPortalToken(clients, token);
+    const checkUrlRouting = () => {
+      // 1. Check for public invoice payment token
+      const payToken = extractPaymentTokenFromUrl();
+      if (payToken) {
+        setPublicInvoiceToken(payToken);
+        setIsDirectInvoicePayMode(true);
+        setIsDirectPortalMode(false);
+        return;
+      }
+
+      // 2. Check for client portal token
+      const portalToken = extractPortalTokenFromUrl();
+      if (portalToken) {
+        const matched = getClientByPortalToken(clients, portalToken);
         if (matched) {
           setPortalClient(matched);
           setIsDirectPortalMode(true);
+          setIsDirectInvoicePayMode(false);
         }
       }
     };
 
-    checkUrlForPortal();
-    window.addEventListener('hashchange', checkUrlForPortal);
-    window.addEventListener('popstate', checkUrlForPortal);
+    checkUrlRouting();
+    window.addEventListener('hashchange', checkUrlRouting);
+    window.addEventListener('popstate', checkUrlRouting);
     return () => {
-      window.removeEventListener('hashchange', checkUrlForPortal);
-      window.removeEventListener('popstate', checkUrlForPortal);
+      window.removeEventListener('hashchange', checkUrlRouting);
+      window.removeEventListener('popstate', checkUrlRouting);
     };
-  }, [clients]);
+  }, [clients, invoices]);
 
   // Persist states
   useEffect(() => {
@@ -484,11 +505,21 @@ export function App() {
     showToast('Payment Recorded', `Invoice ${target.invoiceNumber} marked as paid. Receipt ${receiptNumber} generated.`);
   };
 
+  const handleOpenPublicInvoiceView = (invoice: Invoice) => {
+    const token = invoice.payment_token || invoice.paymentToken || generatePaymentToken(invoice.invoiceNumber, invoice.clientName);
+    setPublicInvoiceToken(token);
+    setIsDirectInvoicePayMode(true);
+  };
+
   const handleDuplicateInvoice = (invoice: Invoice) => {
+    const newNumber = `INV-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newToken = generatePaymentToken(newNumber, invoice.clientName);
     const dup: Invoice = {
       ...invoice,
       id: `inv-${Date.now()}`,
-      invoiceNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
+      invoiceNumber: newNumber,
+      payment_token: newToken,
+      paymentToken: newToken,
       date: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       status: 'draft',
@@ -535,9 +566,12 @@ export function App() {
     includeRefNote: boolean;
   }) => {
     const est = options.estimate;
+    const paymentToken = generatePaymentToken(options.invoiceNumber, est.clientName);
     const newInvoice: Invoice = {
       id: `inv-${Date.now()}`,
       invoiceNumber: options.invoiceNumber,
+      payment_token: paymentToken,
+      paymentToken: paymentToken,
       clientName: est.clientName,
       clientEmail: est.clientEmail,
       clientAddress: est.clientAddress,
@@ -927,9 +961,13 @@ export function App() {
   };
 
   const handleConvertSaleOrderToInvoice = (so: SaleOrder) => {
+    const invNum = `INV-${Math.floor(1000 + Math.random() * 9000)}`;
+    const payToken = generatePaymentToken(invNum, so.clientName);
     const newInv: Invoice = {
       id: `inv-${Date.now()}`,
-      invoiceNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
+      invoiceNumber: invNum,
+      payment_token: payToken,
+      paymentToken: payToken,
       clientName: so.clientName,
       clientEmail: so.clientEmail,
       clientAddress: clients.find((c) => c.name === so.clientName)?.address || '',
@@ -1100,6 +1138,33 @@ export function App() {
   // Due recurring count calculation
   const dueRecurringCount = recurringSchedules.filter((s) => isScheduleDue(s)).length;
   const lowStockCount = items.filter((i) => i.stock <= i.lowStockThreshold).length;
+  const outOfStockCount = items.filter((i) => i.stock <= 0).length;
+
+  // Direct Public Invoice Payment Mode Check (Unauthenticated Token-based Access)
+  if (isDirectInvoicePayMode && publicInvoiceToken) {
+    const matchedInvoice = findInvoiceByPaymentToken(invoices, publicInvoiceToken) || null;
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col">
+        <PublicInvoiceView
+          invoice={matchedInvoice}
+          companyProfile={companyProfile}
+          onPaymentSuccess={(invId) => {
+            handleMarkAsPaid(invId);
+            showToast('Invoice Paid', `Payment confirmed for ${matchedInvoice?.invoiceNumber || ''}!`);
+          }}
+          onExitPreview={() => {
+            setIsDirectInvoicePayMode(false);
+            setPublicInvoiceToken(null);
+            if (window.location.hash || window.location.search) {
+              window.history.replaceState(null, '', window.location.pathname);
+            }
+          }}
+          isStandalone={true}
+        />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      </div>
+    );
+  }
 
   // Direct Client Portal Mode Check
   if (isDirectPortalMode && portalClient) {
@@ -1148,6 +1213,7 @@ export function App() {
         recurringCount={recurringSchedules.length}
         estimateCount={estimates.length}
         lowStockCount={lowStockCount}
+        outOfStockCount={outOfStockCount}
         saleOrderCount={saleOrders.length}
         paymentCount={payments.length}
         purchaseCount={purchases.length}
@@ -1183,6 +1249,7 @@ export function App() {
               estimates={estimates}
               items={items}
               activities={activities}
+              purchases={purchases}
               companyProfile={companyProfile}
               currencySymbol={companyProfile.currencySymbol}
               onNavigate={setCurrentTab}
@@ -1218,6 +1285,7 @@ export function App() {
               onDuplicateInvoice={handleDuplicateInvoice}
               onDeleteInvoice={handleDeleteInvoice}
               onPayOnline={(inv) => setPaymentPortalInvoice(inv)}
+              onOpenPublicInvoice={handleOpenPublicInvoiceView}
               onMakeRecurring={handleMakeRecurringFromInvoice}
               onNavigateToRecurring={() => setCurrentTab('recurring')}
               dueRecurringCount={dueRecurringCount}
@@ -1286,6 +1354,7 @@ export function App() {
             <RecurringSchedulesView
               schedules={recurringSchedules}
               clients={clients}
+              currencySymbol={companyProfile?.currencySymbol || '$'}
               onOpenCreateSchedule={(initialData) => {
                 setEditingRecurringSchedule(initialData || null);
                 setIsCreateRecurringModalOpen(true);
@@ -1392,6 +1461,7 @@ export function App() {
               onBack={() => setCurrentTab('invoices')}
               onSendSuccess={handleSendInvoiceSuccess}
               onOpenPaymentPortal={(inv) => setPaymentPortalInvoice(inv)}
+              onOpenPublicInvoice={handleOpenPublicInvoiceView}
             />
           )}
 

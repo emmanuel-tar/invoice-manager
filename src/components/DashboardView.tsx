@@ -13,10 +13,13 @@ import {
   FileSpreadsheet, 
   ArrowRight,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  Calculator,
+  Percent
 } from 'lucide-react';
-import { Invoice, Estimate, InventoryItem, Activity, NavigationTab, CompanyProfile } from '../types';
+import { Invoice, Estimate, InventoryItem, Activity, NavigationTab, CompanyProfile, PurchaseRecord } from '../types';
 import { RevenueGrowthChart } from './RevenueGrowthChart';
+import { ProfitMarginCalculator } from './ProfitMarginCalculator';
 import { formatCurrencyAmount } from '../data/currencies';
 
 interface DashboardViewProps {
@@ -24,6 +27,7 @@ interface DashboardViewProps {
   estimates: Estimate[];
   items: InventoryItem[];
   activities: Activity[];
+  purchases?: PurchaseRecord[];
   companyProfile?: CompanyProfile;
   currencySymbol?: string;
   onNavigate: (tab: NavigationTab) => void;
@@ -39,6 +43,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   estimates,
   items,
   activities,
+  purchases = [],
   companyProfile,
   currencySymbol = companyProfile?.currencySymbol || '₦',
   onNavigate,
@@ -60,6 +65,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const revenueThisMonth = paidInvoices.reduce((sum, i) => sum + i.total, 0);
   const lowStockCount = items.filter((i) => i.status === 'low' || i.status === 'out').length;
+
+  // Realized Gross Profit Snapshot
+  const itemCostMap = new Map<string, number>();
+  items.forEach((it) => {
+    if (typeof it.costPrice === 'number') {
+      itemCostMap.set(it.name.toLowerCase().trim(), it.costPrice);
+      if (it.sku) itemCostMap.set(it.sku.toLowerCase().trim(), it.costPrice);
+      itemCostMap.set(it.id, it.costPrice);
+    }
+  });
+
+  const totalPaidRevenue = paidInvoices.reduce((sum, i) => sum + i.total, 0);
+  const totalEstimatedCOGS = paidInvoices.reduce((sum, inv) => {
+    return sum + inv.items.reduce((itemSum, line) => {
+      const descKey = line.description.toLowerCase().trim();
+      const unitCost = itemCostMap.get(descKey) ?? (line.unitPrice * 0.35);
+      return itemSum + (line.qty * unitCost);
+    }, 0);
+  }, 0);
+
+  const totalGrossProfit = totalPaidRevenue - totalEstimatedCOGS;
+  const grossProfitMargin = totalPaidRevenue > 0 ? (totalGrossProfit / totalPaidRevenue) * 100 : 0;
 
   return (
     <div id="dashboard-container" className="p-6 md:p-8 space-y-8 max-w-7xl mx-auto">
@@ -309,6 +336,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Real-time Profit Margin & COGS Analytics Calculator */}
+      <ProfitMarginCalculator
+        invoices={invoices}
+        items={items}
+        purchases={purchases}
+        currencySymbol={currencySymbol}
+        onNavigateToInvoices={() => onNavigate('invoices')}
+        onNavigateToItems={() => onNavigate('items')}
+        onNavigateToPurchases={() => onNavigate('purchases')}
+      />
 
       {/* Bottom Grid: Recent Invoices & Live Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

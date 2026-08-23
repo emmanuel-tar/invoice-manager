@@ -45,6 +45,7 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
   const [stock, setStock] = useState<number>(10);
   const [lowStockThreshold, setLowStockThreshold] = useState<number>(5);
   const [unitPrice, setUnitPrice] = useState<number>(100);
+  const [costPrice, setCostPrice] = useState<number>(35);
   const [taxRate, setTaxRate] = useState<number>(10);
 
   const openNewModal = () => {
@@ -55,6 +56,7 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
     setStock(10);
     setLowStockThreshold(5);
     setUnitPrice(150);
+    setCostPrice(50);
     setTaxRate(10);
     setIsAddModalOpen(true);
   };
@@ -67,6 +69,7 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
     setStock(it.stock);
     setLowStockThreshold(it.lowStockThreshold);
     setUnitPrice(it.unitPrice);
+    setCostPrice(it.costPrice ?? Math.round(it.unitPrice * 0.35));
     setTaxRate(it.taxRate);
     setIsAddModalOpen(true);
   };
@@ -87,6 +90,7 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
         stock,
         lowStockThreshold,
         unitPrice,
+        costPrice,
         taxRate,
         status,
       });
@@ -99,6 +103,7 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
         stock,
         lowStockThreshold,
         unitPrice,
+        costPrice,
         taxRate,
         status,
       };
@@ -211,13 +216,20 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
                 <th className="py-3.5 px-4 font-bold">SKU</th>
                 <th className="py-3.5 px-4 font-bold">Category</th>
                 <th className="py-3.5 px-4 font-bold text-center">Stock Level</th>
-                <th className="py-3.5 px-4 font-bold text-right">Unit Price</th>
+                <th className="py-3.5 px-4 font-bold text-right">Selling Price</th>
+                <th className="py-3.5 px-4 font-bold text-right">Cost Price</th>
+                <th className="py-3.5 px-4 font-bold text-center">Margin %</th>
                 <th className="py-3.5 px-4 font-bold text-center">Tax %</th>
                 <th className="py-3.5 px-4 font-bold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredItems.map((it) => (
+              {filteredItems.map((it) => {
+                const itemCost = it.costPrice ?? Math.round(it.unitPrice * 0.35);
+                const itemProfit = it.unitPrice - itemCost;
+                const marginPct = it.unitPrice > 0 ? (itemProfit / it.unitPrice) * 100 : 0;
+
+                return (
                 <tr key={it.id} className="hover:bg-slate-50/80 transition-colors group">
                   <td className="py-3.5 px-4 font-semibold text-slate-900">
                     {it.name}
@@ -251,6 +263,18 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
                     {formatCurrencyAmount(it.unitPrice, currencySymbol)}
                   </td>
 
+                  <td className="py-3.5 px-4 text-right font-mono text-slate-600">
+                    {formatCurrencyAmount(itemCost, currencySymbol)}
+                  </td>
+
+                  <td className="py-3.5 px-4 text-center">
+                    <span className={`inline-block px-1.5 py-0.5 rounded font-mono font-bold text-[10px] ${
+                      marginPct >= 50 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'
+                    }`}>
+                      {marginPct.toFixed(0)}%
+                    </span>
+                  </td>
+
                   <td className="py-3.5 px-4 text-center font-mono text-slate-600">
                     {it.taxRate}%
                   </td>
@@ -272,7 +296,7 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
                     </div>
                   </td>
                 </tr>
-              ))}
+              );})}
             </tbody>
           </table>
         </div>
@@ -328,9 +352,9 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-3 gap-2.5">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Unit Price ($) *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Selling Price ({currencySymbol}) *</label>
                   <input
                     type="number"
                     min="0"
@@ -339,6 +363,18 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
                     value={unitPrice}
                     onChange={(e) => setUnitPrice(Number(e.target.value))}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Cost Price ({currencySymbol})</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={costPrice}
+                    onChange={(e) => setCostPrice(Number(e.target.value))}
+                    placeholder="Unit purchase cost"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
                 <div>
