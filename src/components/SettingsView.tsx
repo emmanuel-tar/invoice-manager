@@ -25,6 +25,7 @@ import {
   Landmark,
   FileSignature,
   Printer,
+  ShieldCheck,
   QrCode,
   Scan,
   Database,
@@ -53,9 +54,11 @@ import {
   InventoryItem, 
   PaymentRecord,
   DeliveryNote,
-  CreditNote
+  CreditNote,
+  WorkflowUser
 } from '../types';
 import { WORLD_CURRENCIES, getCurrencyByCode, formatCurrencyAmount } from '../data/currencies';
+import { can, ROLE_LABELS, ROLE_COLORS, roleDescription, userDisplayName } from '../utils/rbac';
 
 interface SettingsViewProps {
   companyProfile: CompanyProfile;
@@ -76,6 +79,12 @@ interface SettingsViewProps {
   onRestoreFullBackup?: (backupData: any) => void;
   onBulkImportClients?: (newClients: Client[]) => void;
   onBulkImportItems?: (newItems: InventoryItem[]) => void;
+  team?: WorkflowUser[];
+  currentUser?: WorkflowUser;
+  onUpdateRole?: (userId: string, role: WorkflowUser['role']) => void;
+  onAddTeamMember?: (member: WorkflowUser) => void;
+  onRemoveTeamMember?: (userId: string) => void;
+  onSetCurrentUser?: (userId: string) => void;
 }
 
 type MainSettingsSection = 
@@ -85,7 +94,8 @@ type MainSettingsSection =
   | 'invoice_billing' 
   | 'hardware' 
   | 'data_management' 
-  | 'company_profile';
+  | 'company_profile'
+  | 'team_roles';
 
 type InvoiceBillingSubSection = 
   | 'doc_prefs' 
@@ -118,6 +128,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onRestoreFullBackup,
   onBulkImportClients,
   onBulkImportItems,
+  team = [],
+  currentUser,
+  onUpdateRole,
+  onAddTeamMember,
+  onRemoveTeamMember,
+  onSetCurrentUser,
 }) => {
   const [activeSection, setActiveSection] = useState<MainSettingsSection>('home_layout');
   const [invoiceBillingSub, setInvoiceBillingSub] = useState<InvoiceBillingSubSection>('doc_prefs');
@@ -165,6 +181,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const itemFileInputRef = useRef<HTMLInputElement | null>(null);
   const backupRestoreInputRef = useRef<HTMLInputElement | null>(null);
   const [bulkUploadLogs, setBulkUploadLogs] = useState<string[]>([]);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState<WorkflowUser['role']>('staff');
 
   // Filtered Currencies for Company Profile
   const filteredCurrencies = useMemo(() => {
@@ -522,6 +542,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           { id: 'hardware', label: 'Hardware and Devices', icon: Printer },
           { id: 'data_management', label: 'Data & Online Management', icon: HardDrive },
           { id: 'company_profile', label: 'Company Profile & Currencies', icon: Building },
+          { id: 'team_roles', label: 'Team & Permissions', icon: ShieldCheck },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeSection === tab.id;
@@ -2338,6 +2359,153 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {activeSection === 'team_roles' && (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-100">Team & Permissions</h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Role-based access control. Owners manage the team; Admins approve documents; Accountants have
+              view-only financial access.
+            </p>
+          </div>
+
+          {/* Current user banner */}
+          <div className="flex items-center justify-between bg-slate-900/70 border border-slate-800 rounded-xl px-4 py-3">
+            <div className="flex items-center gap-3">
+              <span className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border ${currentUser ? ROLE_COLORS[currentUser.role] : 'bg-slate-800 text-slate-300 border-slate-700'}`}>
+                {userDisplayName(currentUser)}
+              </span>
+              <div>
+                <p className="text-sm text-slate-200 font-medium">{currentUser?.name}</p>
+                <p className="text-[11px] text-slate-400">
+                  Acting as <span className="text-indigo-300 font-semibold">{currentUser ? ROLE_LABELS[currentUser.role] : 'Unknown'}</span> · {currentUser?.email}
+                </p>
+              </div>
+            </div>
+            <ShieldCheck size={18} className="text-emerald-400" />
+          </div>
+
+          {/* Member list */}
+          <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-slate-200">Members ({team.length})</h4>
+              {can(currentUser?.role ?? 'staff', 'manage_users') && (
+                <button
+                  onClick={() => setShowAddMember((v) => !v)}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[11px] font-medium"
+                >
+                  {showAddMember ? 'Cancel' : '+ Add Member'}
+                </button>
+              )}
+            </div>
+
+            {/* Add member form */}
+            {showAddMember && can(currentUser?.role ?? 'staff', 'manage_users') && (
+              <form
+                className="p-4 border-b border-slate-800 space-y-3 bg-slate-900/40"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newMemberName.trim() || !newMemberEmail.trim()) return;
+                  onAddTeamMember?.({
+                    id: `user_${Date.now().toString(36)}`,
+                    name: newMemberName.trim(),
+                    email: newMemberEmail.trim(),
+                    role: newMemberRole,
+                  });
+                  setNewMemberName('');
+                  setNewMemberEmail('');
+                  setNewMemberRole('staff');
+                  setShowAddMember(false);
+                  showNotification(`Team member "${newMemberName.trim()}" added.`);
+                }}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <input
+                    type="text"
+                    value={newMemberName}
+                    onChange={(e) => setNewMemberName(e.target.value)}
+                    placeholder="Full name"
+                    className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+                  />
+                  <input
+                    type="email"
+                    value={newMemberEmail}
+                    onChange={(e) => setNewMemberEmail(e.target.value)}
+                    placeholder="Email address"
+                    className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+                  />
+                  <select
+                    value={newMemberRole}
+                    onChange={(e) => setNewMemberRole(e.target.value as WorkflowUser['role'])}
+                    className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:border-indigo-500 focus:outline-none"
+                  >
+                    {(Object.keys(ROLE_LABELS) as Array<WorkflowUser['role']>)
+                      .filter((r) => r !== 'owner')
+                      .map((r) => (
+                        <option key={r} value={r}>
+                          {ROLE_LABELS[r]}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddMember(false)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium"
+                  >
+                    Add Member
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {team.length === 0 ? (
+              <div className="px-4 py-8 text-center text-xs text-slate-400">
+                No team members yet. Add your first teammate to get started.
+              </div>
+            ) : (
+              team.map((member) => (
+                <div key={member.id} className="flex items-center justify-between px-4 py-3 border-b border-slate-800 last:border-b-0">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border ${ROLE_COLORS[member.role]}`}>
+                      {userDisplayName(member)}
+                    </span>
+                    <div>
+                      <p className="text-sm text-slate-200 font-medium">
+                        {member.name}
+                        {currentUser?.id === member.id && <span className="ml-1.5 text-[10px] text-indigo-300 font-semibold">(You)</span>}
+                      </p>
+                      <p className="text-[11px] text-slate-400">{member.email}</p>
+                    </div>
+                  </div>
+                  <select
+                    value={member.role}
+                    disabled={!can(currentUser?.role ?? 'staff', 'manage_users') || member.role === 'owner'}
+                    onChange={(e) => {
+                      onUpdateRole?.(member.id, e.target.value as WorkflowUser['role']);
+                      showNotification(`${member.name} is now ${ROLE_LABELS[e.target.value as WorkflowUser['role']]}.`);
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium border bg-transparent focus:outline-none ${ROLE_COLORS[member.role]} disabled:opacity-60`}
+                  >
+                    {(Object.keys(ROLE_LABELS) as Array<WorkflowUser['role']>).map((r) => (
+                      <option key={r} value={r} className="bg-slate-900 text-slate-100">
+                        {ROLE_LABELS[r]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

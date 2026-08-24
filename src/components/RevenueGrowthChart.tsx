@@ -17,7 +17,6 @@ import {
 import { 
   TrendingUp, 
   TrendingDown, 
-  DollarSign, 
   Calendar, 
   Layers, 
   BarChart3, 
@@ -223,17 +222,17 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
                 <span>Paid Revenue:</span>
               </span>
               <span className="font-bold text-emerald-400">
-                ${dataPoint.paidRevenue.toLocaleString()}
+                ₦{dataPoint.paidRevenue.toLocaleString()}
               </span>
             </div>
 
             <div className="flex items-center justify-between">
               <span className="text-slate-400 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                <span className="w-2 h-2 rounded-full bg-teal-500" />
                 <span>Gross Invoiced:</span>
               </span>
-              <span className="font-bold text-blue-400">
-                ${dataPoint.invoicedTotal.toLocaleString()}
+              <span className="font-bold text-teal-400">
+                ₦{dataPoint.invoicedTotal.toLocaleString()}
               </span>
             </div>
 
@@ -241,7 +240,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
               <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-slate-300">
                 <span className="text-slate-400">Cumulative Paid:</span>
                 <span className="font-semibold text-slate-200">
-                  ${dataPoint.cumulativePaid.toLocaleString()}
+                  ₦{dataPoint.cumulativePaid.toLocaleString()}
                 </span>
               </div>
             )}
@@ -259,7 +258,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
   };
 
   return (
-    <div id="revenue-growth-card" className="bg-white rounded-xl border border-slate-200/80 p-6 shadow-xs space-y-5">
+    <div id="revenue-growth-card" className="dashboard-card p-6 space-y-5">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -320,7 +319,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
               onClick={() => setTimeframe('6m')}
               className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
                 timeframe === '6m'
-                  ? 'bg-blue-600 text-white shadow-xs'
+                  ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -330,7 +329,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
               onClick={() => setTimeframe('12m')}
               className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
                 timeframe === '12m'
-                  ? 'bg-blue-600 text-white shadow-xs'
+                  ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -347,7 +346,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
             Collected ({timeframe.toUpperCase()})
           </div>
           <div className="text-lg font-black text-slate-900 font-mono-data mt-0.5">
-            ${totalPaidInPeriod.toLocaleString()}
+            ₦${totalPaidInPeriod.toLocaleString()}
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5">Total settled revenue</div>
         </div>
@@ -357,7 +356,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
             Monthly Average
           </div>
           <div className="text-lg font-black text-slate-900 font-mono-data mt-0.5">
-            ${avgMonthlyRevenue.toLocaleString()}
+            ₦${avgMonthlyRevenue.toLocaleString()}
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5">Mean monthly cashflow</div>
         </div>
@@ -393,7 +392,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
             {bestMonth ? bestMonth.label : 'N/A'}
           </div>
           <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-            ${bestMonth ? bestMonth.paidRevenue.toLocaleString() : '0'} collected
+            ₦${bestMonth ? bestMonth.paidRevenue.toLocaleString() : '0'} collected
           </div>
         </div>
       </div>
@@ -409,8 +408,8 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
                   <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
                 </linearGradient>
                 <linearGradient id="invoicedGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                  <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.18} />
+                  <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -424,14 +423,14 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
                 tickLine={false} 
                 axisLine={false} 
                 tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }} 
-                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} 
+                tickFormatter={(val) => `₦${(val / 1000).toFixed(0)}k`} 
               />
               <Tooltip content={<CustomTooltip />} />
               <Area
                 type="monotone"
                 dataKey="invoicedTotal"
                 name="Gross Invoiced"
-                stroke="#3b82f6"
+                stroke="#14b8a6"
                 strokeWidth={1.5}
                 strokeDasharray="4 4"
                 fillOpacity={1}
@@ -461,13 +460,13 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
                 tickLine={false} 
                 axisLine={false} 
                 tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }} 
-                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} 
+                tickFormatter={(val) => `₦${(val / 1000).toFixed(0)}k`} 
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar 
                 dataKey="invoicedTotal" 
                 name="Gross Invoiced" 
-                fill="#93c5fd" 
+                fill="#5eead4" 
                 radius={[4, 4, 0, 0]} 
                 maxBarSize={28} 
               />
@@ -498,7 +497,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
                 tickLine={false} 
                 axisLine={false} 
                 tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }} 
-                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} 
+                tickFormatter={(val) => `₦${(val / 1000).toFixed(0)}k`} 
               />
               <Tooltip content={<CustomTooltip />} />
               <Area
@@ -548,7 +547,7 @@ export const RevenueGrowthChart: React.FC<RevenueGrowthChartProps> = ({
           {onNavigateToReports && (
             <button
               onClick={onNavigateToReports}
-              className="text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 transition-colors"
+              className="text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1 transition-colors"
             >
               <span>Detailed Financial Report</span>
               <ArrowUpRight className="w-3.5 h-3.5" />

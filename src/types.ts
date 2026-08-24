@@ -19,7 +19,42 @@ export type NavigationTab =
   | 'purchases'
   | 'purchase_orders'
   | 'other_income'
-  | 'expenses';
+  | 'expenses'
+  | 'approvals';
+
+// === RBAC (Role-Based Access Control) ===
+export type Role = 'owner' | 'admin' | 'accountant' | 'staff';
+
+export interface WorkflowUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  avatarColor?: string;
+}
+
+// === Approval Workflow ===
+export type ApprovalStatus = 'pending_approval' | 'approved' | 'rejected';
+
+export interface ApprovalInfo {
+  status: ApprovalStatus;
+  requestedBy?: string;
+  requestedAt?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNotes?: string;
+}
+
+export interface ApprovableDoc {
+  id: string;
+  number: string;
+  clientName: string;
+  total: number;
+  status: string;
+  type: 'invoice' | 'purchase_order' | 'credit_note';
+  date: string;
+  approval?: ApprovalInfo;
+}
 
 export interface LineItem {
   id: string;
@@ -30,7 +65,7 @@ export interface LineItem {
   total: number;
 }
 
-export type InvoiceStatus = 'paid' | 'pending' | 'overdue' | 'draft';
+export type InvoiceStatus = 'paid' | 'pending' | 'overdue' | 'draft' | 'pending_approval';
 
 export interface Invoice {
   id: string;
@@ -50,6 +85,7 @@ export interface Invoice {
   notes?: string;
   estimateRef?: string;
   createdAt: string;
+  approval?: ApprovalInfo;
 }
 
 export type EstimateStatus = 'sent' | 'accepted' | 'rejected' | 'expired';
@@ -293,7 +329,7 @@ export interface PurchaseReturn {
 }
 
 // Purchase Order Types
-export type PurchaseOrderStatus = 'draft' | 'ordered' | 'received' | 'cancelled';
+export type PurchaseOrderStatus = 'draft' | 'ordered' | 'received' | 'cancelled' | 'pending_approval';
 
 export interface PurchaseOrder {
   id: string;
@@ -309,6 +345,7 @@ export interface PurchaseOrder {
   total: number;
   status: PurchaseOrderStatus;
   notes?: string;
+  approval?: ApprovalInfo;
 }
 
 // Other Income Types
@@ -397,7 +434,7 @@ export interface DeliveryNote {
 }
 
 // Credit Note Types
-export type CreditNoteStatus = 'issued' | 'applied' | 'refunded' | 'void';
+export type CreditNoteStatus = 'issued' | 'applied' | 'refunded' | 'void' | 'pending_approval';
 export type CreditReason = 
   | 'Damaged / Defective Goods' 
   | 'Pricing Error / Overbilled' 
@@ -424,6 +461,7 @@ export interface CreditNote {
   appliedToInvoiceId?: string;
   notes?: string;
   createdAt: string;
+  approval?: ApprovalInfo;
 }
 
 // Bank Account Information

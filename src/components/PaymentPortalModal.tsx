@@ -82,7 +82,7 @@ export const PaymentPortalModal: React.FC<PaymentPortalModalProps> = ({
               Payment Successful!
             </h3>
             <p className="text-xs text-slate-500 font-mono">
-              Receipt #REC-{Math.floor(100000 + Math.random() * 900000)} • ${invoice.total.toFixed(2)} USD
+              Receipt #REC-{Math.floor(100000 + Math.random() * 900000)} • ₦{invoice.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} NGN
             </p>
             <div className="p-3.5 bg-emerald-50 rounded-lg border border-emerald-200 text-xs text-emerald-800 font-medium">
               Payment settled for <span className="font-bold">{invoice.invoiceNumber}</span>. A confirmation email and receipt has been dispatched to {invoice.clientEmail}.
@@ -222,7 +222,7 @@ export const PaymentPortalModal: React.FC<PaymentPortalModalProps> = ({
                   ) : (
                     <>
                       <Lock className="w-4 h-4 text-blue-200" />
-                      <span>Pay ${invoice.total.toFixed(2)} USD</span>
+                      <span>Pay ₦{invoice.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} NGN</span>
                     </>
                   )}
                 </button>

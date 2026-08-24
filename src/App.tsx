@@ -26,7 +26,10 @@ import {
   DeliveryStatus,
   CreditNote,
   CreditNoteStatus,
-  AppSettings
+  AppSettings,
+  WorkflowUser,
+  ApprovalInfo,
+  ApprovableDoc
 } from './types';
 import { 
   initialCompanyProfile, 
@@ -48,13 +51,16 @@ import {
   initialExpenses,
   initialDeliveryNotes,
   initialCreditNotes,
-  initialAppSettings
+  initialAppSettings,
+  initialTeam,
+  initialCurrentUser
 } from './data/mockData';
 
 // Components
 import { Sidebar } from './components/Sidebar';
 import { TopAppBar } from './components/TopAppBar';
 import { DashboardView } from './components/DashboardView';
+import { ApprovalsView } from './components/ApprovalsView';
 import { InvoicesView } from './components/InvoicesView';
 import { RecurringSchedulesView } from './components/RecurringSchedulesView';
 import { CreateInvoiceView } from './components/CreateInvoiceView';
@@ -90,6 +96,7 @@ import { ClientPortalView } from './components/ClientPortalView';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { generateInvoiceFromSchedule, isScheduleDue } from './utils/recurringUtils';
 import { extractPortalTokenFromUrl, getClientByPortalToken } from './utils/portalUtils';
+import { can } from './utils/rbac';
 
 export function App() {
   // Main Data States with localStorage persistence
@@ -196,6 +203,17 @@ export function App() {
     return saved ? JSON.parse(saved) : initialAppSettings;
   });
 
+  // RBAC Team & Current User (persisted)
+  const [team, setTeam] = useState<WorkflowUser[]>(() => {
+    const saved = localStorage.getItem('invoicepro_team');
+    return saved ? JSON.parse(saved) : initialTeam;
+  });
+  const [currentUser, setCurrentUser] = useState<WorkflowUser>(() => {
+    const saved = localStorage.getItem('invoicepro_current_user');
+    return saved ? JSON.parse(saved) : initialCurrentUser;
+  });
+  const currentRole = currentUser?.role ?? 'owner';
+
   // Modal & View States
   const [selectedInvoiceForSend, setSelectedInvoiceForSend] = useState<Invoice | null>(null);
   const [editingInvoiceData, setEditingInvoiceData] = useState<Partial<Invoice> | undefined>(undefined);
@@ -296,6 +314,14 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('invoicepro_app_settings', JSON.stringify(appSettings));
   }, [appSettings]);
+
+  useEffect(() => {
+    localStorage.setItem('invoicepro_team', JSON.stringify(team));
+  }, [team]);
+
+  useEffect(() => {
+    localStorage.setItem('invoicepro_current_user', JSON.stringify(currentUser));
+  }, [currentUser]);
 
   // Toast Helper
   const showToast = (title: string, description?: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -398,6 +424,135 @@ export function App() {
     }
     setCurrentTab('invoices');
   };
+
+  // --- RBAC: team & current user management ---
+  const handleUpdateRole = (userId: string, role: WorkflowUser['role']) => {
+    setTeam((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
+    // Keep current user in sync if edited
+    if (currentUser?.id === userId) setCurrentUser((prev) => (prev ? { ...prev, role } : prev));
+    showToast('Role Updated', 'Permission matrix refreshed for this member.');
+  };
+  const handleAddTeamMember = (member: WorkflowUser) => {
+    setTeam((prev) => [...prev, member]);
+    showToast('Team Member Added', `${member.name} added to the workspace.`);
+  };
+  const handleRemoveTeamMember = (userId: string) => {
+    if (userId === currentUser?.id) {
+      showToast('Action Blocked', 'You cannot remove the active user.', 'error');
+      return;
+    }
+    setTeam((prev) => prev.filter((u) => u.id !== userId));
+    showToast('Team Member Removed', 'Member removed from the workspace.');
+  };
+  const handleSetCurrentUser = (userId: string) => {
+    const target = team.find((u) => u.id === userId);
+    if (!target) return;
+    setCurrentUser(target);
+    showToast('Role Switched', `Viewing as ${target.name} (${target.role}).`);
+  };
+
+  // --- Approval workflow helpers ---
+  const submitForApproval = (type: 'invoice' | 'purchase_order' | 'credit_note', id: string) => {
+    const now = new Date().toISOString();
+    if (type === 'invoice') {
+      setInvoices((prev) => prev.map((inv) => (inv.id === id ? {
+        ...inv,
+        status: 'pending_approval',
+        approval: { status: 'pending_approval', requestedBy: currentUser?.name, requestedAt: now },
+      } : inv)));
+      showToast('Submitted for Approval', 'Invoice awaiting review.');
+    } else if (type === 'purchase_order') {
+      setPurchaseOrders((prev) => prev.map((po) => (po.id === id ? {
+        ...po,
+        status: 'pending_approval',
+        approval: { status: 'pending_approval', requestedBy: currentUser?.name, requestedAt: now },
+      } : po)));
+      showToast('Submitted for Approval', 'Purchase order awaiting review.');
+    } else if (type === 'credit_note') {
+      setCreditNotes((prev) => prev.map((cn) => (cn.id === id ? {
+        ...cn,
+        status: 'pending_approval',
+        approval: { status: 'pending_approval', requestedBy: currentUser?.name, requestedAt: now },
+      } : cn)));
+      showToast('Submitted for Approval', 'Credit note awaiting review.');
+    }
+  };
+
+  const decideApproval = (
+    type: 'invoice' | 'purchase_order' | 'credit_note',
+    id: string,
+    approve: boolean,
+    reviewNotes?: string
+  ) => {
+    const now = new Date().toISOString();
+    const reviewInfo: ApprovalInfo = {
+      status: approve ? 'approved' : 'rejected',
+      reviewedBy: currentUser?.name,
+      reviewedAt: now,
+      reviewNotes,
+    };
+
+    if (type === 'invoice') {
+      setInvoices((prev) => prev.map((inv) => (inv.id === id ? {
+        ...inv,
+        status: approve ? 'pending' : 'draft',
+        approval: { ...inv.approval, ...reviewInfo } as ApprovalInfo,
+      } : inv)));
+    } else if (type === 'purchase_order') {
+      setPurchaseOrders((prev) => prev.map((po) => (po.id === id ? {
+        ...po,
+        status: approve ? 'ordered' : 'draft',
+        approval: { ...po.approval, ...reviewInfo } as ApprovalInfo,
+      } : po)));
+    } else if (type === 'credit_note') {
+      setCreditNotes((prev) => prev.map((cn) => (cn.id === id ? {
+        ...cn,
+        status: approve ? 'issued' : 'void',
+        approval: { ...cn.approval, ...reviewInfo } as ApprovalInfo,
+      } : cn)));
+    }
+    showToast(approve ? 'Approved' : 'Rejected', `${type.replace('_', ' ')} decision recorded.`);
+  };
+
+  // Build the approvals inbox feed from all approvable documents
+  const approvalQueue: ApprovableDoc[] = [
+    ...invoices
+      .filter((i) => i.status === 'pending_approval')
+      .map((i) => ({
+        id: i.id,
+        number: i.invoiceNumber,
+        clientName: i.clientName,
+        total: i.total,
+        status: i.status,
+        type: 'invoice' as const,
+        date: i.createdAt,
+        approval: i.approval,
+      })),
+    ...purchaseOrders
+      .filter((po) => po.status === 'pending_approval')
+      .map((po) => ({
+        id: po.id,
+        number: po.poNumber,
+        clientName: po.vendorName,
+        total: po.total,
+        status: po.status,
+        type: 'purchase_order' as const,
+        date: po.orderDate,
+        approval: po.approval,
+      })),
+    ...creditNotes
+      .filter((cn) => cn.status === 'pending_approval')
+      .map((cn) => ({
+        id: cn.id,
+        number: cn.creditNoteNumber,
+        clientName: cn.clientName,
+        total: cn.totalAmount,
+        status: cn.status,
+        type: 'credit_note' as const,
+        date: cn.createdAt,
+        approval: cn.approval,
+      })),
+  ];
 
   const handleMarkAsPaid = (invoiceId: string) => {
     const target = invoices.find((i) => i.id === invoiceId);
@@ -1124,7 +1279,7 @@ export function App() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-100 font-sans antialiased text-slate-800 overflow-hidden">
+    <div className="flex h-screen app-shell-bg font-sans antialiased text-slate-800 overflow-hidden">
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
@@ -1143,6 +1298,8 @@ export function App() {
         creditNoteCount={creditNotes.length}
         hiddenTabs={appSettings.hiddenTabs}
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
+        pendingApprovalCount={approvalQueue.length}
+        currentRole={currentRole}
       />
 
       {/* Main Content Area */}
@@ -1164,7 +1321,7 @@ export function App() {
         />
 
         {/* Dynamic Route / View Rendering */}
-        <main className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-6 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto bg-transparent p-4 md:p-6 custom-scrollbar">
           {currentTab === 'dashboard' && (
             <DashboardView
               invoices={invoices}
@@ -1180,6 +1337,16 @@ export function App() {
               onOpenAddItem={() => setCurrentTab('items')}
               onViewInvoice={(inv) => setPreviewDoc({ doc: inv, type: 'invoice' })}
               onPayInvoice={(inv) => setPaymentPortalInvoice(inv)}
+            />
+          )}
+
+          {currentTab === 'approvals' && (
+            <ApprovalsView
+              queue={approvalQueue}
+              currentUser={currentUser}
+              canApprove={can(currentRole, 'approve')}
+              onDecide={decideApproval}
+              onNavigate={setCurrentTab}
             />
           )}
 

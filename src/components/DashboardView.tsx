@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  DollarSign, 
+  Coins, 
   Clock, 
   AlertTriangle, 
   FileText, 
@@ -73,7 +73,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <button
             id="btn-quick-create-invoice-dash"
             onClick={onOpenCreateInvoice}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
           >
             <Plus className="w-4 h-4" />
             <span>Create Invoice</span>
@@ -81,7 +81,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <button
             id="btn-quick-send-estimate-dash"
             onClick={onOpenCreateEstimate}
-            className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-xs transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-200 rounded-lg text-xs font-semibold shadow-xs transition-all"
           >
             <FileSpreadsheet className="w-4 h-4 text-slate-500" />
             <span>New Estimate</span>
@@ -95,13 +95,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div 
           id="kpi-total-invoices"
           onClick={() => onNavigate('invoices')}
-          className="p-5 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm hover:border-slate-300 transition-all cursor-pointer group"
+          className="dashboard-card p-5 cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">
               Total Invoices
             </span>
-            <div className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 group-hover:scale-105 transition-transform">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm group-hover:scale-105 transition-transform">
               <FileText className="w-4 h-4" />
             </div>
           </div>
@@ -115,7 +115,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-2 text-xs text-slate-500 flex items-center justify-between">
             <span>{paidInvoices.length} Paid • {pendingInvoices.length} Pending</span>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="w-3.5 h-3.5 text-emerald-400 group-hover:translate-x-1 transition-transform" />
           </div>
         </div>
 
@@ -123,19 +123,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div 
           id="kpi-outstanding"
           onClick={() => onNavigate('invoices')}
-          className="p-5 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm hover:border-slate-300 transition-all cursor-pointer group"
+          className="dashboard-card p-5 cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">
               Outstanding
             </span>
-            <div className="p-2 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 group-hover:scale-105 transition-transform">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm group-hover:scale-105 transition-transform">
               <Clock className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-black text-slate-900 font-mono-data">
-              ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₦{totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <div className="mt-2 text-xs text-amber-700 font-medium flex items-center gap-1.5">
@@ -148,26 +148,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div 
           id="kpi-revenue-month"
           onClick={() => onNavigate('reports')}
-          className="p-5 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm hover:border-slate-300 transition-all cursor-pointer group"
+          className="dashboard-card p-5 cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">
               Revenue (This Month)
             </span>
-            <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 group-hover:scale-105 transition-transform">
-              <DollarSign className="w-4 h-4" />
+            <div className="p-2 rounded-xl bg-gradient-to-br from-teal-400 to-cyan-500 text-white shadow-sm group-hover:scale-105 transition-transform">
+              <Coins className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-black text-slate-900 font-mono-data">
-              ${revenueThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₦{revenueThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
             <span className="text-xs font-semibold text-emerald-600 flex items-center">
               <TrendingUp className="w-3 h-3 mr-0.5" /> +12%
             </span>
           </div>
           <div className="mt-2 text-xs text-slate-500">
-            Target: $20,000 (76% achieved)
+            Target: ₦20,000 (76% achieved)
           </div>
         </div>
 
@@ -175,13 +175,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div 
           id="kpi-low-stock"
           onClick={() => onNavigate('items')}
-          className="p-5 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm hover:border-slate-300 transition-all cursor-pointer group"
+          className="dashboard-card p-5 cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">
               Low Stock Alerts
             </span>
-            <div className="p-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 group-hover:scale-105 transition-transform">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 text-white shadow-sm group-hover:scale-105 transition-transform">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
@@ -192,7 +192,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-2 text-xs text-slate-500 flex items-center justify-between">
             <span>Requires replenishment</span>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="w-3.5 h-3.5 text-rose-400 group-hover:translate-x-1 transition-transform" />
           </div>
         </div>
       </div>
@@ -209,7 +209,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Invoice Status Distribution (Donut representation) */}
-        <div className="bg-white rounded-xl border border-slate-200/80 p-6 shadow-xs flex flex-col justify-between">
+        <div className="dashboard-card p-6 flex flex-col justify-between">
           <div>
             <h3 className="font-bold text-slate-900 text-base">Invoice Status Breakdown</h3>
             <p className="text-xs text-slate-500">Distribution of active collection pipeline</p>
@@ -271,7 +271,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span>Paid ({paidInvoices.length})</span>
                 </span>
                 <span className="font-mono font-bold text-slate-900">
-                  ${paidInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
+                  ₦{paidInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-700">
@@ -280,7 +280,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span>Pending ({pendingInvoices.length})</span>
                 </span>
                 <span className="font-mono font-bold text-slate-900">
-                  ${pendingInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
+                  ₦{pendingInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-700">
@@ -289,7 +289,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span>Overdue ({overdueInvoices.length})</span>
                 </span>
                 <span className="font-mono font-bold text-slate-900">
-                  ${overdueInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
+                  ₦{overdueInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -307,7 +307,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Bottom Grid: Recent Invoices & Live Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Invoices Table (2 cols) */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200/80 p-6 shadow-xs">
+        <div className="lg:col-span-2 dashboard-card p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-bold text-slate-900 text-base">Recent Invoices</h3>
@@ -315,7 +315,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <button
               onClick={() => onNavigate('invoices')}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
             >
               <span>View All</span>
               <ChevronRight className="w-4 h-4" />
@@ -347,7 +347,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {inv.dueDate}
                     </td>
                     <td className="py-3 text-right font-mono font-bold text-slate-900">
-                      ${inv.total.toFixed(2)}
+                      ₦{inv.total.toFixed(2)}
                     </td>
                     <td className="py-3 text-center">
                       <span
@@ -391,7 +391,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Activity Feed (1 col) */}
-        <div className="bg-white rounded-xl border border-slate-200/80 p-6 shadow-xs flex flex-col justify-between">
+        <div className="dashboard-card p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-slate-900 text-base">Recent Activity</h3>

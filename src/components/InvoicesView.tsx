@@ -64,7 +64,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
   invoices,
   clients = [],
   items = [],
-  companyProfile = { currencySymbol: '$', currency: 'USD' } as CompanyProfile,
+  companyProfile = { currencySymbol: '₦', currency: 'NGN' } as CompanyProfile,
   globalSearch = '',
   onGlobalSearchChange,
   onOpenCreateInvoice,

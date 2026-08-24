@@ -22,7 +22,8 @@ import {
   Layers,
   Plus,
   Truck,
-  FileMinus
+  FileMinus,
+  ShieldCheck
 } from 'lucide-react';
 import { NavigationTab } from '../types';
 
@@ -40,6 +41,8 @@ interface SidebarProps {
   creditNoteCount?: number;
   hiddenTabs?: NavigationTab[];
   onOpenOnboarding: () => void;
+  pendingApprovalCount?: number;
+  currentRole?: string;
 }
 
 interface NavItem {
@@ -70,6 +73,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   creditNoteCount = 0,
   hiddenTabs = [],
   onOpenOnboarding,
+  pendingApprovalCount = 0,
+  currentRole = 'Owner',
 }) => {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     payments: true,
@@ -93,6 +98,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: 'Dashboard',
           icon: LayoutDashboard,
           badge: null,
+        },
+        {
+          id: 'approvals' as NavigationTab,
+          label: 'Approvals',
+          icon: ShieldCheck,
+          badge: pendingApprovalCount > 0 ? pendingApprovalCount : null,
         },
         {
           id: 'invoices' as NavigationTab,
@@ -387,11 +398,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-3 border-t border-slate-800/80 bg-slate-950/40 shrink-0">
         <div className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-800/50 transition-colors">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center ring-1 ring-slate-700">
-              EA
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 text-white font-bold text-xs flex items-center justify-center ring-1 ring-slate-700">
+              {currentRole.slice(0, 2).toUpperCase()}
             </div>
             <div className="text-left">
-              <div className="text-xs font-semibold text-white leading-tight">Admin Desk</div>
+              <div className="text-xs font-semibold text-white leading-tight capitalize">{currentRole}</div>
               <div className="text-[10px] text-slate-400 font-mono truncate max-w-[110px]">Active Ledger</div>
             </div>
           </div>

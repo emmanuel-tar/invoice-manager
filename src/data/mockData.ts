@@ -18,7 +18,8 @@ import {
   Expense,
   DeliveryNote,
   CreditNote,
-  AppSettings
+  AppSettings,
+  WorkflowUser
 } from '../types';
 
 export const initialCompanyProfile: CompanyProfile = {
@@ -1355,5 +1356,14 @@ export const initialAppSettings: AppSettings = {
   },
 };
 
+// === RBAC: Seed Team & Current User ===
+export const initialTeam: WorkflowUser[] = [
+  { id: 'user-owner', name: 'Ade Adeyemi', email: 'owner@invoicepro.test', role: 'owner', avatarColor: 'bg-amber-500' },
+  { id: 'user-admin', name: 'Chiamaka Okafor', email: 'admin@invoicepro.test', role: 'admin', avatarColor: 'bg-indigo-500' },
+  { id: 'user-acct', name: 'Babatunde Lawal', email: 'accountant@invoicepro.test', role: 'accountant', avatarColor: 'bg-sky-500' },
+  { id: 'user-staff', name: 'Fatima Bello', email: 'staff@invoicepro.test', role: 'staff', avatarColor: 'bg-slate-500' },
+];
+
+export const initialCurrentUser: WorkflowUser = initialTeam[0]; // owner by default
 
 

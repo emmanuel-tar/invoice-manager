@@ -77,7 +77,7 @@ export function getCurrencyByCode(code: string): CurrencyOption {
   if (match) return match;
   return {
     code: code || 'NGN',
-    symbol: code === 'USD' ? '$' : code === 'EUR' ? '€' : code === 'GBP' ? '£' : '₦',
+    symbol: '₦',
     name: code || 'Nigerian Naira',
     country: 'International',
     region: 'Africa',
