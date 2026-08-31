@@ -70,6 +70,8 @@ export type InvoiceStatus = 'paid' | 'pending' | 'overdue' | 'draft' | 'pending_
 export interface Invoice {
   id: string;
   invoiceNumber: string;
+  payment_token: string;
+  paymentToken?: string;
   clientName: string;
   clientEmail: string;
   clientAddress: string;
@@ -136,6 +138,7 @@ export interface InventoryItem {
   stock: number;
   lowStockThreshold: number;
   unitPrice: number;
+  costPrice?: number;
   taxRate: number;
   status: 'in_stock' | 'low' | 'out';
 }

@@ -13,9 +13,11 @@ import {
   ExternalLink,
   ShieldCheck,
   Building,
-  DollarSign
+  DollarSign,
+  Lock
 } from 'lucide-react';
 import { Invoice, CompanyProfile } from '../types';
+import { getPublicInvoicePaymentUrl } from '../utils/paymentTokenUtils';
 
 interface SendInvoiceViewProps {
   invoice: Invoice;
@@ -23,6 +25,7 @@ interface SendInvoiceViewProps {
   onBack: () => void;
   onSendSuccess: (invoiceId: string, emailDetails: { to: string; subject: string }) => void;
   onOpenPaymentPortal: (invoice: Invoice) => void;
+  onOpenPublicInvoice?: (invoice: Invoice) => void;
 }
 
 export const SendInvoiceView: React.FC<SendInvoiceViewProps> = ({
@@ -31,6 +34,7 @@ export const SendInvoiceView: React.FC<SendInvoiceViewProps> = ({
   onBack,
   onSendSuccess,
   onOpenPaymentPortal,
+  onOpenPublicInvoice,
 }) => {
   const [recipient, setRecipient] = useState<string>(invoice.clientEmail || 'billing@acmecorp.com');
   const [cc, setCc] = useState<string>('');
@@ -79,7 +83,8 @@ export const SendInvoiceView: React.FC<SendInvoiceViewProps> = ({
   };
 
   const copyPaymentLink = () => {
-    navigator.clipboard.writeText(`https://pay.invoicepro.io/i/${invoice.invoiceNumber.toLowerCase()}`);
+    const paymentUrl = getPublicInvoicePaymentUrl(invoice.payment_token || invoice.paymentToken || '');
+    navigator.clipboard.writeText(paymentUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };
@@ -101,11 +106,24 @@ export const SendInvoiceView: React.FC<SendInvoiceViewProps> = ({
             </h2>
             <p className="text-xs text-slate-500 font-mono mt-0.5">
               Invoice <span className="font-bold text-blue-900">{invoice.invoiceNumber}</span> • Recipient: {invoice.clientName}
+              <span className="ml-2 px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-600 rounded text-[10px] font-mono">
+                Token: {(invoice.payment_token || invoice.paymentToken || '').slice(0, 16)}...
+              </span>
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5">
+          {onOpenPublicInvoice && (
+            <button
+              onClick={() => onOpenPublicInvoice(invoice)}
+              className="flex items-center gap-1.5 px-3 py-2 border border-blue-200 bg-blue-50/50 hover:bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold transition-colors"
+            >
+              <Eye className="w-4 h-4 text-blue-600" />
+              <span>Preview Public View</span>
+            </button>
+          )}
+
           <button
             onClick={copyPaymentLink}
             className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition-colors"

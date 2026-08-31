@@ -23,7 +23,8 @@ import {
   Plus,
   Truck,
   FileMinus,
-  ShieldCheck
+  ShieldCheck,
+  AlertTriangle
 } from 'lucide-react';
 import { NavigationTab } from '../types';
 
@@ -34,6 +35,7 @@ interface SidebarProps {
   recurringCount?: number;
   estimateCount: number;
   lowStockCount: number;
+  outOfStockCount?: number;
   saleOrderCount?: number;
   paymentCount?: number;
   purchaseCount?: number;
@@ -49,8 +51,11 @@ interface NavItem {
   id: NavigationTab;
   label: string;
   icon: any;
-  badge?: string | number | null;
+  badge?: React.ReactNode | string | number | null;
   badgeColor?: string;
+  isAlert?: boolean;
+  alertType?: 'warning' | 'danger';
+  alertTooltip?: string;
   subItems?: { label: string; tab: NavigationTab }[];
 }
 
@@ -66,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   recurringCount = 0,
   estimateCount,
   lowStockCount,
+  outOfStockCount = 0,
   saleOrderCount = 0,
   paymentCount = 0,
   purchaseCount = 0,

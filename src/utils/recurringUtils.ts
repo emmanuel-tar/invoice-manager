@@ -1,4 +1,5 @@
 import { RecurringSchedule, RecurringFrequency, Invoice, LineItem, BillingPatternPreset } from '../types';
+import { generatePaymentToken } from './paymentTokenUtils';
 
 export const BILLING_PATTERN_PRESETS: BillingPatternPreset[] = [
   {
@@ -220,6 +221,120 @@ export function getFrequencyLabel(frequency: RecurringFrequency): string {
   }
 }
 
+export interface NextRunInfo {
+  dateFormatted: string;
+  daysRemaining: number;
+  isDue: boolean;
+  isToday: boolean;
+  isTomorrow: boolean;
+  relativeText: string;
+  urgencyLevel: 'critical' | 'warning' | 'upcoming' | 'distant' | 'paused';
+  badgeBgColor: string;
+  badgeTextColor: string;
+  badgeBorderColor: string;
+  followingRunDateFormatted: string;
+  followingRunRelative: string;
+}
+
+/**
+ * Calculates and returns rich next run date metrics, countdown indicators, and following cycle projections
+ */
+export function getNextRunInfo(schedule: RecurringSchedule): NextRunInfo {
+  const isPaused = schedule.status === 'paused';
+  const isCompleted = schedule.status === 'completed';
+  const nextDateStr = schedule.nextBillingDate;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const billingDate = new Date(nextDateStr);
+  billingDate.setHours(0, 0, 0, 0);
+
+  const diffTime = billingDate.getTime() - today.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  const isToday = diffDays === 0;
+  const isTomorrow = diffDays === 1;
+  const isDue = (diffDays <= 0) && !isPaused && !isCompleted;
+
+  let relativeText = '';
+  let urgencyLevel: NextRunInfo['urgencyLevel'] = 'distant';
+  let badgeBgColor = 'bg-slate-100';
+  let badgeTextColor = 'text-slate-700';
+  let badgeBorderColor = 'border-slate-200';
+
+  if (isPaused) {
+    relativeText = 'Paused';
+    urgencyLevel = 'paused';
+    badgeBgColor = 'bg-slate-100';
+    badgeTextColor = 'text-slate-600';
+    badgeBorderColor = 'border-slate-200';
+  } else if (isCompleted) {
+    relativeText = 'Completed';
+    urgencyLevel = 'paused';
+    badgeBgColor = 'bg-slate-100';
+    badgeTextColor = 'text-slate-500';
+    badgeBorderColor = 'border-slate-200';
+  } else if (diffDays < 0) {
+    const overdueDays = Math.abs(diffDays);
+    relativeText = overdueDays === 1 ? 'Due (1d ago)' : `Due (${overdueDays}d ago)`;
+    urgencyLevel = 'critical';
+    badgeBgColor = 'bg-rose-50';
+    badgeTextColor = 'text-rose-700';
+    badgeBorderColor = 'border-rose-200';
+  } else if (isToday) {
+    relativeText = 'Due Today';
+    urgencyLevel = 'critical';
+    badgeBgColor = 'bg-amber-50';
+    badgeTextColor = 'text-amber-800';
+    badgeBorderColor = 'border-amber-300';
+  } else if (isTomorrow) {
+    relativeText = 'Tomorrow';
+    urgencyLevel = 'warning';
+    badgeBgColor = 'bg-blue-50';
+    badgeTextColor = 'text-blue-700';
+    badgeBorderColor = 'border-blue-200';
+  } else if (diffDays <= 7) {
+    relativeText = `In ${diffDays} days`;
+    urgencyLevel = 'upcoming';
+    badgeBgColor = 'bg-emerald-50';
+    badgeTextColor = 'text-emerald-700';
+    badgeBorderColor = 'border-emerald-200';
+  } else if (diffDays <= 30) {
+    const weeks = Math.round(diffDays / 7);
+    relativeText = weeks <= 1 ? `In ${diffDays} days` : `In ~${weeks} weeks`;
+    urgencyLevel = 'distant';
+    badgeBgColor = 'bg-slate-50';
+    badgeTextColor = 'text-slate-700';
+    badgeBorderColor = 'border-slate-200';
+  } else {
+    const months = Math.round(diffDays / 30);
+    relativeText = `In ~${months} mo`;
+    urgencyLevel = 'distant';
+    badgeBgColor = 'bg-slate-50';
+    badgeTextColor = 'text-slate-600';
+    badgeBorderColor = 'border-slate-200';
+  }
+
+  const followingCycleDate = calculateNextBillingDate(nextDateStr, schedule.frequency);
+  const followingRunDateFormatted = formatDate(followingCycleDate);
+
+  return {
+    dateFormatted: formatDate(nextDateStr),
+    daysRemaining: diffDays,
+    isDue,
+    isToday,
+    isTomorrow,
+    relativeText,
+    urgencyLevel,
+    badgeBgColor,
+    badgeTextColor,
+    badgeBorderColor,
+    followingRunDateFormatted,
+    followingRunRelative: `Following: ${followingRunDateFormatted}`,
+  };
+}
+
 /**
  * Generates a draft (or pending) Invoice object from a RecurringSchedule
  */
@@ -244,9 +359,12 @@ export function generateInvoiceFromSchedule(
     total: item.total,
   }));
 
+  const paymentToken = generatePaymentToken(invoiceNum, schedule.clientName);
   const invoice: Invoice = {
     id: `inv-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     invoiceNumber: invoiceNum,
+    payment_token: paymentToken,
+    paymentToken: paymentToken,
     clientName: schedule.clientName,
     clientEmail: schedule.clientEmail,
     clientAddress: schedule.clientAddress,

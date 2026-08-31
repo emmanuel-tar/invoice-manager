@@ -96,6 +96,14 @@ export function getPresetDateRange(preset: string): { startDate: string; endDate
         startDate: toIso(today),
         endDate: toIso(today),
       };
+    case 'yesterday': {
+      const yest = new Date(today);
+      yest.setDate(yest.getDate() - 1);
+      return {
+        startDate: toIso(yest),
+        endDate: toIso(yest),
+      };
+    }
     case 'last_7_days': {
       const past = new Date(today);
       past.setDate(past.getDate() - 7);
@@ -107,6 +115,23 @@ export function getPresetDateRange(preset: string): { startDate: string; endDate
     case 'this_month': {
       const start = new Date(today.getFullYear(), today.getMonth(), 1);
       const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      return {
+        startDate: toIso(start),
+        endDate: toIso(end),
+      };
+    }
+    case 'last_month': {
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const end = new Date(today.getFullYear(), today.getMonth(), 0);
+      return {
+        startDate: toIso(start),
+        endDate: toIso(end),
+      };
+    }
+    case 'this_quarter': {
+      const currentQuarter = Math.floor(today.getMonth() / 3);
+      const start = new Date(today.getFullYear(), currentQuarter * 3, 1);
+      const end = new Date(today.getFullYear(), (currentQuarter + 1) * 3, 0);
       return {
         startDate: toIso(start),
         endDate: toIso(end),
@@ -131,6 +156,14 @@ export function getPresetDateRange(preset: string): { startDate: string; endDate
     case 'this_year': {
       const start = new Date(today.getFullYear(), 0, 1);
       const end = new Date(today.getFullYear(), 11, 31);
+      return {
+        startDate: toIso(start),
+        endDate: toIso(end),
+      };
+    }
+    case 'last_year': {
+      const start = new Date(today.getFullYear() - 1, 0, 1);
+      const end = new Date(today.getFullYear() - 1, 11, 31);
       return {
         startDate: toIso(start),
         endDate: toIso(end),

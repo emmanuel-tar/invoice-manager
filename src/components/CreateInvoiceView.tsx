@@ -14,6 +14,7 @@ import {
   Calculator
 } from 'lucide-react';
 import { Invoice, Client, InventoryItem, LineItem, CompanyProfile } from '../types';
+import { generatePaymentToken } from '../utils/paymentTokenUtils';
 
 interface CreateInvoiceViewProps {
   clients: Client[];
@@ -156,9 +157,14 @@ export const CreateInvoiceView: React.FC<CreateInvoiceViewProps> = ({
   const grandTotal = discountedSubtotal + totalTaxAmount;
 
   const buildInvoiceObject = (status: 'draft' | 'pending'): Invoice => {
+    const existingToken = initialInvoiceData?.payment_token || initialInvoiceData?.paymentToken;
+    const paymentToken = existingToken || generatePaymentToken(invoiceNumber, currentClient?.name);
+
     return {
       id: initialInvoiceData?.id || `inv-${Date.now()}`,
       invoiceNumber,
+      payment_token: paymentToken,
+      paymentToken: paymentToken,
       clientName: currentClient?.name || 'Unknown Client',
       clientEmail: currentClient?.email || '',
       clientAddress: currentClient?.address || '',
@@ -173,7 +179,7 @@ export const CreateInvoiceView: React.FC<CreateInvoiceViewProps> = ({
       status: status,
       notes,
       estimateRef: estimateRef || undefined,
-      createdAt: new Date().toISOString(),
+      createdAt: initialInvoiceData?.createdAt || new Date().toISOString(),
     };
   };
 

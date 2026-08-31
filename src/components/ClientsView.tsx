@@ -25,15 +25,18 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { Client, Invoice } from '../types';
+import { Client, Invoice, CompanyProfile } from '../types';
 import { ClientPortalShareModal } from './ClientPortalShareModal';
 import { ClientNotesModal } from './ClientNotesModal';
 import { RichTextEditor } from './RichTextEditor';
 import { generateSecurePortalToken, getClientPortalUrl } from '../utils/portalUtils';
+import { formatCurrencyAmount } from '../data/currencies';
 
 interface ClientsViewProps {
   clients: Client[];
   invoices: Invoice[];
+  companyProfile?: CompanyProfile;
+  currencySymbol?: string;
   onAddClient: (client: Client) => void;
   onEditClient: (client: Client) => void;
   onDeleteClient: (clientId: string) => void;
@@ -47,6 +50,8 @@ interface ClientsViewProps {
 export const ClientsView: React.FC<ClientsViewProps> = ({
   clients,
   invoices,
+  companyProfile,
+  currencySymbol = companyProfile?.currencySymbol || '₦',
   onAddClient,
   onEditClient,
   onDeleteClient,
@@ -234,7 +239,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
         <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs">
           <div className="text-[11px] font-bold text-emerald-600 font-mono uppercase">Lifetime Revenue</div>
           <div className="text-xl font-black text-emerald-700 font-mono-data mt-1">
-            ${totalRevenueAll.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatCurrencyAmount(totalRevenueAll, currencySymbol)}
           </div>
           <div className="text-[11px] text-slate-500 mt-0.5">Cumulative billed volume</div>
         </div>
@@ -242,7 +247,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
         <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs">
           <div className="text-[11px] font-bold text-blue-600 font-mono uppercase">Total Outstanding</div>
           <div className="text-xl font-black text-blue-700 font-mono-data mt-1">
-            ${totalOutstandingAll.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatCurrencyAmount(totalOutstandingAll, currencySymbol)}
           </div>
           <div className="text-[11px] text-slate-500 mt-0.5">Unsettled client balances</div>
         </div>
@@ -355,7 +360,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                       Outstanding
                     </span>
                     <span className="font-mono font-bold text-slate-900">
-                      ${client.outstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {formatCurrencyAmount(client.outstanding, currencySymbol)}
                     </span>
                   </div>
                   <div>
@@ -363,7 +368,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                       Total Billed
                     </span>
                     <span className="font-mono font-bold text-slate-900">
-                      ${client.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {formatCurrencyAmount(client.totalRevenue, currencySymbol)}
                     </span>
                   </div>
                 </div>

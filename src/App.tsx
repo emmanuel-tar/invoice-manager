@@ -88,15 +88,41 @@ import { ConvertToInvoiceModal } from './components/ConvertToInvoiceModal';
 import { ConvertSuccessModal } from './components/ConvertSuccessModal';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { InvoicePrintPreviewModal } from './components/InvoicePrintPreviewModal';
+import { DocumentCreatedModal } from './components/DocumentCreatedModal';
 import { PaymentPortalModal } from './components/PaymentPortalModal';
 import { CreateEstimateModal } from './components/CreateEstimateModal';
 import { CreateRecurringScheduleModal } from './components/CreateRecurringScheduleModal';
 import { AddClientModal } from './components/AddClientModal';
 import { ClientPortalView } from './components/ClientPortalView';
+import { PublicInvoiceView } from './components/PublicInvoiceView';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { generateInvoiceFromSchedule, isScheduleDue } from './utils/recurringUtils';
 import { extractPortalTokenFromUrl, getClientByPortalToken } from './utils/portalUtils';
 import { can } from './utils/rbac';
+import {
+  extractPaymentTokenFromUrl,
+  findInvoiceByPaymentToken,
+  ensureInvoicePaymentToken,
+  generatePaymentToken
+} from './utils/paymentTokenUtils';
+
+// Safety-net snapshot: a single consolidated copy of all persisted data.
+// If an individual storage key is ever missing (e.g. partially cleared),
+// the app restores that collection from this snapshot on next load.
+const SNAPSHOT_KEY = 'invoicepro_snapshot';
+
+function readWithSnapshot<T>(key: string, fallback: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved) return JSON.parse(saved);
+    const snap = localStorage.getItem(SNAPSHOT_KEY);
+    if (snap) {
+      const parsed = JSON.parse(snap);
+      if (parsed && parsed[key] != null) return parsed[key] as T;
+    }
+  } catch (e) {}
+  return fallback;
+}
 
 export function App() {
   // Main Data States with localStorage persistence
@@ -104,120 +130,73 @@ export function App() {
   
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(() => {
     const saved = localStorage.getItem('invoicepro_company');
-    return saved ? JSON.parse(saved) : initialCompanyProfile;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // If parsed currency was missing or old USD default, default to NGN / ₦
+        return {
+          ...initialCompanyProfile,
+          ...parsed,
+          currency: parsed.currency && parsed.currency !== 'USD' ? parsed.currency : (parsed.currency === 'USD' && initialCompanyProfile.currency === 'NGN' ? 'NGN' : (parsed.currency || 'NGN')),
+          currencySymbol: parsed.currencySymbol && parsed.currencySymbol !== '$' ? parsed.currencySymbol : (parsed.currencySymbol === '$' && initialCompanyProfile.currencySymbol === '₦' ? '₦' : (parsed.currencySymbol || '₦')),
+        };
+      } catch (e) {}
+    }
+    return initialCompanyProfile;
   });
   
-  const [taxRates, setTaxRates] = useState<TaxRate[]>(() => {
-    const saved = localStorage.getItem('invoicepro_taxes');
-    return saved ? JSON.parse(saved) : initialTaxRates;
-  });
-  
-  const [invoices, setInvoices] = useState<Invoice[]>(() => {
-    const saved = localStorage.getItem('invoicepro_invoices');
-    return saved ? JSON.parse(saved) : initialInvoices;
-  });
-  
-  const [estimates, setEstimates] = useState<Estimate[]>(() => {
-    const saved = localStorage.getItem('invoicepro_estimates');
-    return saved ? JSON.parse(saved) : initialEstimates;
-  });
-  
-  const [clients, setClients] = useState<Client[]>(() => {
-    const saved = localStorage.getItem('invoicepro_clients');
-    return saved ? JSON.parse(saved) : initialClients;
-  });
-  
-  const [items, setItems] = useState<InventoryItem[]>(() => {
-    const saved = localStorage.getItem('invoicepro_items');
-    return saved ? JSON.parse(saved) : initialInventoryItems;
-  });
-  
-  const [activities, setActivities] = useState<Activity[]>(() => {
-    const saved = localStorage.getItem('invoicepro_activities');
-    return saved ? JSON.parse(saved) : initialActivities;
-  });
-  
-  const [recurringSchedules, setRecurringSchedules] = useState<RecurringSchedule[]>(() => {
-    const saved = localStorage.getItem('invoicepro_recurring_schedules');
-    return saved ? JSON.parse(saved) : initialRecurringSchedules;
-  });
+  const [taxRates, setTaxRates] = useState<TaxRate[]>(() => readWithSnapshot('invoicepro_taxes', initialTaxRates));
+
+  const [invoices, setInvoices] = useState<Invoice[]>(() =>
+    readWithSnapshot<Invoice[]>('invoicepro_invoices', initialInvoices).map((inv: Invoice) => ensureInvoicePaymentToken(inv))
+  );
+
+  const [estimates, setEstimates] = useState<Estimate[]>(() => readWithSnapshot('invoicepro_estimates', initialEstimates));
+
+  const [clients, setClients] = useState<Client[]>(() => readWithSnapshot('invoicepro_clients', initialClients));
+
+  const [items, setItems] = useState<InventoryItem[]>(() => readWithSnapshot('invoicepro_items', initialInventoryItems));
+
+  const [activities, setActivities] = useState<Activity[]>(() => readWithSnapshot('invoicepro_activities', initialActivities));
+
+  const [recurringSchedules, setRecurringSchedules] = useState<RecurringSchedule[]>(() => readWithSnapshot('invoicepro_recurring_schedules', initialRecurringSchedules));
 
   // Enterprise & Ledger States
-  const [payments, setPayments] = useState<PaymentRecord[]>(() => {
-    const saved = localStorage.getItem('invoicepro_payments');
-    return saved ? JSON.parse(saved) : initialPayments;
-  });
+  const [payments, setPayments] = useState<PaymentRecord[]>(() => readWithSnapshot('invoicepro_payments', initialPayments));
 
-  const [receipts, setReceipts] = useState<ReceiptRecord[]>(() => {
-    const saved = localStorage.getItem('invoicepro_receipts');
-    return saved ? JSON.parse(saved) : initialReceipts;
-  });
+  const [receipts, setReceipts] = useState<ReceiptRecord[]>(() => readWithSnapshot('invoicepro_receipts', initialReceipts));
 
-  const [batchItems, setBatchItems] = useState<BatchItem[]>(() => {
-    const saved = localStorage.getItem('invoicepro_batch_items');
-    return saved ? JSON.parse(saved) : initialBatches;
-  });
+  const [batchItems, setBatchItems] = useState<BatchItem[]>(() => readWithSnapshot('invoicepro_batch_items', initialBatches));
 
-  const [saleOrders, setSaleOrders] = useState<SaleOrder[]>(() => {
-    const saved = localStorage.getItem('invoicepro_sale_orders');
-    return saved ? JSON.parse(saved) : initialSaleOrders;
-  });
+  const [saleOrders, setSaleOrders] = useState<SaleOrder[]>(() => readWithSnapshot('invoicepro_sale_orders', initialSaleOrders));
 
-  const [purchases, setPurchases] = useState<PurchaseRecord[]>(() => {
-    const saved = localStorage.getItem('invoicepro_purchases');
-    return saved ? JSON.parse(saved) : initialPurchases;
-  });
+  const [purchases, setPurchases] = useState<PurchaseRecord[]>(() => readWithSnapshot('invoicepro_purchases', initialPurchases));
 
-  const [purchaseReturns, setPurchaseReturns] = useState<PurchaseReturn[]>(() => {
-    const saved = localStorage.getItem('invoicepro_purchase_returns');
-    return saved ? JSON.parse(saved) : initialPurchaseReturns;
-  });
+  const [purchaseReturns, setPurchaseReturns] = useState<PurchaseReturn[]>(() => readWithSnapshot('invoicepro_purchase_returns', initialPurchaseReturns));
 
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(() => {
-    const saved = localStorage.getItem('invoicepro_purchase_orders');
-    return saved ? JSON.parse(saved) : initialPurchaseOrders;
-  });
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(() => readWithSnapshot('invoicepro_purchase_orders', initialPurchaseOrders));
 
-  const [otherIncomes, setOtherIncomes] = useState<OtherIncome[]>(() => {
-    const saved = localStorage.getItem('invoicepro_other_incomes');
-    return saved ? JSON.parse(saved) : initialOtherIncomes;
-  });
+  const [otherIncomes, setOtherIncomes] = useState<OtherIncome[]>(() => readWithSnapshot('invoicepro_other_incomes', initialOtherIncomes));
 
-  const [expenses, setExpenses] = useState<Expense[]>(() => {
-    const saved = localStorage.getItem('invoicepro_expenses');
-    return saved ? JSON.parse(saved) : initialExpenses;
-  });
+  const [expenses, setExpenses] = useState<Expense[]>(() => readWithSnapshot('invoicepro_expenses', initialExpenses));
 
-  const [deliveryNotes, setDeliveryNotes] = useState<DeliveryNote[]>(() => {
-    const saved = localStorage.getItem('invoicepro_delivery_notes');
-    return saved ? JSON.parse(saved) : initialDeliveryNotes;
-  });
+  const [deliveryNotes, setDeliveryNotes] = useState<DeliveryNote[]>(() => readWithSnapshot('invoicepro_delivery_notes', initialDeliveryNotes));
 
-  const [creditNotes, setCreditNotes] = useState<CreditNote[]>(() => {
-    const saved = localStorage.getItem('invoicepro_credit_notes');
-    return saved ? JSON.parse(saved) : initialCreditNotes;
-  });
+  const [creditNotes, setCreditNotes] = useState<CreditNote[]>(() => readWithSnapshot('invoicepro_credit_notes', initialCreditNotes));
 
-  const [appSettings, setAppSettings] = useState<AppSettings>(() => {
-    const saved = localStorage.getItem('invoicepro_app_settings');
-    return saved ? JSON.parse(saved) : initialAppSettings;
-  });
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => readWithSnapshot('invoicepro_app_settings', initialAppSettings));
 
   // RBAC Team & Current User (persisted)
-  const [team, setTeam] = useState<WorkflowUser[]>(() => {
-    const saved = localStorage.getItem('invoicepro_team');
-    return saved ? JSON.parse(saved) : initialTeam;
-  });
-  const [currentUser, setCurrentUser] = useState<WorkflowUser>(() => {
-    const saved = localStorage.getItem('invoicepro_current_user');
-    return saved ? JSON.parse(saved) : initialCurrentUser;
-  });
+  const [team, setTeam] = useState<WorkflowUser[]>(() => readWithSnapshot('invoicepro_team', initialTeam));
+  const [currentUser, setCurrentUser] = useState<WorkflowUser>(() => readWithSnapshot('invoicepro_current_user', initialCurrentUser));
   const currentRole = currentUser?.role ?? 'owner';
 
   // Modal & View States
   const [selectedInvoiceForSend, setSelectedInvoiceForSend] = useState<Invoice | null>(null);
   const [editingInvoiceData, setEditingInvoiceData] = useState<Partial<Invoice> | undefined>(undefined);
+  const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ doc: Invoice | Estimate; type: 'invoice' | 'estimate' } | null>(null);
+  const [createdDoc, setCreatedDoc] = useState<{ doc: Invoice | Estimate; type: 'invoice' | 'estimate'; nextAction?: 'send' } | null>(null);
   const [convertTargetEstimate, setConvertTargetEstimate] = useState<Estimate | null>(null);
   const [convertSuccessData, setConvertSuccessData] = useState<{ invoice: Invoice; estimate: Estimate } | null>(null);
   const [paymentPortalInvoice, setPaymentPortalInvoice] = useState<Invoice | null>(null);
@@ -230,28 +209,41 @@ export function App() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [portalClient, setPortalClient] = useState<Client | null>(null);
   const [isDirectPortalMode, setIsDirectPortalMode] = useState<boolean>(false);
+  const [publicInvoiceToken, setPublicInvoiceToken] = useState<string | null>(null);
+  const [isDirectInvoicePayMode, setIsDirectInvoicePayMode] = useState<boolean>(false);
 
-  // Check URL parameters for direct client portal
+  // Check URL parameters for direct client portal or public invoice payment
   useEffect(() => {
-    const checkUrlForPortal = () => {
-      const token = extractPortalTokenFromUrl();
-      if (token) {
-        const matched = getClientByPortalToken(clients, token);
+    const checkUrlRouting = () => {
+      // 1. Check for public invoice payment token
+      const payToken = extractPaymentTokenFromUrl();
+      if (payToken) {
+        setPublicInvoiceToken(payToken);
+        setIsDirectInvoicePayMode(true);
+        setIsDirectPortalMode(false);
+        return;
+      }
+
+      // 2. Check for client portal token
+      const portalToken = extractPortalTokenFromUrl();
+      if (portalToken) {
+        const matched = getClientByPortalToken(clients, portalToken);
         if (matched) {
           setPortalClient(matched);
           setIsDirectPortalMode(true);
+          setIsDirectInvoicePayMode(false);
         }
       }
     };
 
-    checkUrlForPortal();
-    window.addEventListener('hashchange', checkUrlForPortal);
-    window.addEventListener('popstate', checkUrlForPortal);
+    checkUrlRouting();
+    window.addEventListener('hashchange', checkUrlRouting);
+    window.addEventListener('popstate', checkUrlRouting);
     return () => {
-      window.removeEventListener('hashchange', checkUrlForPortal);
-      window.removeEventListener('popstate', checkUrlForPortal);
+      window.removeEventListener('hashchange', checkUrlRouting);
+      window.removeEventListener('popstate', checkUrlRouting);
     };
-  }, [clients]);
+  }, [clients, invoices]);
 
   // Persist states
   useEffect(() => {
@@ -323,6 +315,40 @@ export function App() {
     localStorage.setItem('invoicepro_current_user', JSON.stringify(currentUser));
   }, [currentUser]);
 
+  // Consolidated safety-net snapshot of ALL data, refreshed on every change.
+  useEffect(() => {
+    try {
+      const snapshot: Record<string, unknown> = {
+        'invoicepro_company': companyProfile,
+        'invoicepro_taxes': taxRates,
+        'invoicepro_invoices': invoices,
+        'invoicepro_estimates': estimates,
+        'invoicepro_clients': clients,
+        'invoicepro_items': items,
+        'invoicepro_activities': activities,
+        'invoicepro_recurring_schedules': recurringSchedules,
+        'invoicepro_payments': payments,
+        'invoicepro_receipts': receipts,
+        'invoicepro_batch_items': batchItems,
+        'invoicepro_sale_orders': saleOrders,
+        'invoicepro_purchases': purchases,
+        'invoicepro_purchase_returns': purchaseReturns,
+        'invoicepro_purchase_orders': purchaseOrders,
+        'invoicepro_other_incomes': otherIncomes,
+        'invoicepro_expenses': expenses,
+        'invoicepro_delivery_notes': deliveryNotes,
+        'invoicepro_credit_notes': creditNotes,
+        'invoicepro_app_settings': appSettings,
+        'invoicepro_team': team,
+        'invoicepro_current_user': currentUser,
+        snapshotDate: new Date().toISOString(),
+      };
+      localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
+    } catch (e) {
+      // Storage full or unavailable — individual keys are still persisted.
+    }
+  }, [companyProfile, taxRates, invoices, estimates, clients, items, activities, recurringSchedules, payments, receipts, batchItems, saleOrders, purchases, purchaseReturns, purchaseOrders, otherIncomes, expenses, deliveryNotes, creditNotes, appSettings, team, currentUser]);
+
   // Toast Helper
   const showToast = (title: string, description?: string, type: 'success' | 'error' | 'info' = 'success') => {
     const newToast: ToastMessage = {
@@ -378,9 +404,20 @@ export function App() {
     setClients((prev) =>
       prev.map((c) => {
         if (c.name === invoice.clientName) {
+          if (existingIndex >= 0) {
+            // Editing an existing invoice: adjust outstanding by the difference
+            // between the new and previous amounts (paid invoices add nothing).
+            const oldInvoice = invoices[existingIndex];
+            const oldOutstanding = oldInvoice.status === 'paid' ? 0 : oldInvoice.total;
+            const newOutstanding = invoice.status === 'paid' ? 0 : invoice.total;
+            return {
+              ...c,
+              outstanding: Math.max(0, c.outstanding - oldOutstanding + newOutstanding),
+            };
+          }
           return {
             ...c,
-            invoiceCount: c.invoiceCount + (existingIndex >= 0 ? 0 : 1),
+            invoiceCount: c.invoiceCount + 1,
             outstanding: invoice.status === 'paid' ? c.outstanding : c.outstanding + invoice.total,
           };
         }
@@ -389,16 +426,21 @@ export function App() {
     );
 
     addActivity(
-      'invoice_created',
+      existingIndex >= 0 ? 'invoice_edited' : 'invoice_created',
       `Invoice ${invoice.invoiceNumber}`,
-      `created for ${invoice.clientName} (${companyProfile.currencySymbol}${invoice.total.toFixed(2)}).`,
+      existingIndex >= 0
+        ? `edited (status: ${invoice.status}) for ${invoice.clientName} (${companyProfile.currencySymbol}${invoice.total.toFixed(2)}).`
+        : `created for ${invoice.clientName} (${companyProfile.currencySymbol}${invoice.total.toFixed(2)}).`,
       invoice.invoiceNumber
     );
 
     if (action === 'send') {
-      setSelectedInvoiceForSend(invoice);
-      setCurrentTab('send_invoice');
+      // Show export popup (Print / PDF / Image); continue to Send flow after it closes
+      setCreatedDoc({ doc: invoice, type: 'invoice', nextAction: 'send' });
+      showToast('Invoice Ready', `Invoice ${invoice.invoiceNumber} created. You can print, export or send it.`);
     } else {
+      // Show export popup (Print / PDF / Image) immediately after finishing
+      setCreatedDoc({ doc: invoice, type: 'invoice' });
       showToast('Invoice Saved', `Invoice ${invoice.invoiceNumber} saved as ${invoice.status}.`);
       setCurrentTab('invoices');
     }
@@ -627,11 +669,21 @@ export function App() {
     showToast('Payment Recorded', `Invoice ${target.invoiceNumber} marked as paid. Receipt ${receiptNumber} generated.`);
   };
 
+  const handleOpenPublicInvoiceView = (invoice: Invoice) => {
+    const token = invoice.payment_token || invoice.paymentToken || generatePaymentToken(invoice.invoiceNumber, invoice.clientName);
+    setPublicInvoiceToken(token);
+    setIsDirectInvoicePayMode(true);
+  };
+
   const handleDuplicateInvoice = (invoice: Invoice) => {
+    const newNumber = `INV-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newToken = generatePaymentToken(newNumber, invoice.clientName);
     const dup: Invoice = {
       ...invoice,
       id: `inv-${Date.now()}`,
-      invoiceNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
+      invoiceNumber: newNumber,
+      payment_token: newToken,
+      paymentToken: newToken,
       date: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       status: 'draft',
@@ -678,9 +730,12 @@ export function App() {
     includeRefNote: boolean;
   }) => {
     const est = options.estimate;
+    const paymentToken = generatePaymentToken(options.invoiceNumber, est.clientName);
     const newInvoice: Invoice = {
       id: `inv-${Date.now()}`,
       invoiceNumber: options.invoiceNumber,
+      payment_token: paymentToken,
+      paymentToken: paymentToken,
       clientName: est.clientName,
       clientEmail: est.clientEmail,
       clientAddress: est.clientAddress,
@@ -732,8 +787,18 @@ export function App() {
 
   // Estimate Handlers
   const handleSaveEstimate = (est: Estimate) => {
+    const existingIndex = estimates.findIndex((e) => e.id === est.id);
+    if (existingIndex >= 0) {
+      // Update in place — works for any status (incl. accepted / converted)
+      setEstimates((prev) => prev.map((e) => (e.id === est.id ? est : e)));
+      showToast('Estimate Updated', `Estimate ${est.estimateNumber} changes saved.`);
+      setEditingEstimate(null);
+      return;
+    }
     setEstimates((prev) => [est, ...prev]);
     showToast('Estimate Created', `Estimate ${est.estimateNumber} sent to ${est.clientName}.`);
+    // Show export popup (Print / PDF / Image) immediately after finishing
+    setCreatedDoc({ doc: est, type: 'estimate' });
     addActivity(
       'estimate_sent',
       'Estimate Sent',
@@ -1070,9 +1135,13 @@ export function App() {
   };
 
   const handleConvertSaleOrderToInvoice = (so: SaleOrder) => {
+    const invNum = `INV-${Math.floor(1000 + Math.random() * 9000)}`;
+    const payToken = generatePaymentToken(invNum, so.clientName);
     const newInv: Invoice = {
       id: `inv-${Date.now()}`,
-      invoiceNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
+      invoiceNumber: invNum,
+      payment_token: payToken,
+      paymentToken: payToken,
       clientName: so.clientName,
       clientEmail: so.clientEmail,
       clientAddress: clients.find((c) => c.name === so.clientName)?.address || '',
@@ -1243,6 +1312,33 @@ export function App() {
   // Due recurring count calculation
   const dueRecurringCount = recurringSchedules.filter((s) => isScheduleDue(s)).length;
   const lowStockCount = items.filter((i) => i.stock <= i.lowStockThreshold).length;
+  const outOfStockCount = items.filter((i) => i.stock <= 0).length;
+
+  // Direct Public Invoice Payment Mode Check (Unauthenticated Token-based Access)
+  if (isDirectInvoicePayMode && publicInvoiceToken) {
+    const matchedInvoice = findInvoiceByPaymentToken(invoices, publicInvoiceToken) || null;
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col">
+        <PublicInvoiceView
+          invoice={matchedInvoice}
+          companyProfile={companyProfile}
+          onPaymentSuccess={(invId) => {
+            handleMarkAsPaid(invId);
+            showToast('Invoice Paid', `Payment confirmed for ${matchedInvoice?.invoiceNumber || ''}!`);
+          }}
+          onExitPreview={() => {
+            setIsDirectInvoicePayMode(false);
+            setPublicInvoiceToken(null);
+            if (window.location.hash || window.location.search) {
+              window.history.replaceState(null, '', window.location.pathname);
+            }
+          }}
+          isStandalone={true}
+        />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      </div>
+    );
+  }
 
   // Direct Client Portal Mode Check
   if (isDirectPortalMode && portalClient) {
@@ -1251,6 +1347,7 @@ export function App() {
         <ClientPortalView
           client={portalClient}
           invoices={invoices}
+          estimates={estimates}
           companyProfile={companyProfile}
           onPayInvoice={(inv) => setPaymentPortalInvoice(inv)}
           onExitPreview={() => setIsDirectPortalMode(false)}
@@ -1291,6 +1388,7 @@ export function App() {
         recurringCount={recurringSchedules.length}
         estimateCount={estimates.length}
         lowStockCount={lowStockCount}
+        outOfStockCount={outOfStockCount}
         saleOrderCount={saleOrders.length}
         paymentCount={payments.length}
         purchaseCount={purchases.length}
@@ -1328,6 +1426,9 @@ export function App() {
               estimates={estimates}
               items={items}
               activities={activities}
+              purchases={purchases}
+              companyProfile={companyProfile}
+              currencySymbol={companyProfile.currencySymbol}
               onNavigate={setCurrentTab}
               onOpenCreateInvoice={() => {
                 setEditingInvoiceData(undefined);
@@ -1367,10 +1468,15 @@ export function App() {
                 setSelectedInvoiceForSend(inv);
                 setCurrentTab('send_invoice');
               }}
+              onEditInvoice={(inv) => {
+                setEditingInvoiceData(inv);
+                setCurrentTab('create_invoice');
+              }}
               onMarkAsPaid={handleMarkAsPaid}
               onDuplicateInvoice={handleDuplicateInvoice}
               onDeleteInvoice={handleDeleteInvoice}
               onPayOnline={(inv) => setPaymentPortalInvoice(inv)}
+              onOpenPublicInvoice={handleOpenPublicInvoiceView}
               onMakeRecurring={handleMakeRecurringFromInvoice}
               onNavigateToRecurring={() => setCurrentTab('recurring')}
               dueRecurringCount={dueRecurringCount}
@@ -1385,7 +1491,14 @@ export function App() {
               estimates={estimates}
               clients={clients}
               companyProfile={companyProfile}
-              onOpenCreateEstimate={() => setIsCreateEstimateOpen(true)}
+              onOpenCreateEstimate={() => {
+                setEditingEstimate(null);
+                setIsCreateEstimateOpen(true);
+              }}
+              onEditEstimate={(est) => {
+                setEditingEstimate(est);
+                setIsCreateEstimateOpen(true);
+              }}
               onAddQuickEstimate={handleAddQuickEstimate}
               onOpenConvertModal={(est) => setConvertTargetEstimate(est)}
               onDeleteEstimate={handleDeleteEstimate}
@@ -1439,6 +1552,7 @@ export function App() {
             <RecurringSchedulesView
               schedules={recurringSchedules}
               clients={clients}
+              currencySymbol={companyProfile?.currencySymbol || '₦'}
               onOpenCreateSchedule={(initialData) => {
                 setEditingRecurringSchedule(initialData || null);
                 setIsCreateRecurringModalOpen(true);
@@ -1545,6 +1659,7 @@ export function App() {
               onBack={() => setCurrentTab('invoices')}
               onSendSuccess={handleSendInvoiceSuccess}
               onOpenPaymentPortal={(inv) => setPaymentPortalInvoice(inv)}
+              onOpenPublicInvoice={handleOpenPublicInvoiceView}
             />
           )}
 
@@ -1552,6 +1667,8 @@ export function App() {
             <ClientsView
               clients={clients}
               invoices={invoices}
+              companyProfile={companyProfile}
+              currencySymbol={companyProfile.currencySymbol}
               onAddClient={handleAddClient}
               onEditClient={handleEditClient}
               onDeleteClient={handleDeleteClient}
@@ -1576,6 +1693,7 @@ export function App() {
           {currentTab === 'items' && (
             <ItemsView
               items={items}
+              currencySymbol={companyProfile.currencySymbol}
               onAddItem={handleAddItem}
               onEditItem={handleEditItem}
               onDeleteItem={handleDeleteItem}
@@ -1588,6 +1706,8 @@ export function App() {
               invoices={invoices}
               clients={clients}
               taxRates={taxRates}
+              companyProfile={companyProfile}
+              currencySymbol={companyProfile.currencySymbol}
             />
           )}
 
@@ -1680,6 +1800,23 @@ export function App() {
         }}
       />
 
+      {/* 4b. Post-Creation Export Popup: Print / Save as PDF / Save as Image */}
+      <DocumentCreatedModal
+        doc={createdDoc?.doc || null}
+        type={createdDoc?.type || 'invoice'}
+        companyProfile={companyProfile}
+        isOpen={Boolean(createdDoc)}
+        onClose={() => {
+          const next = createdDoc?.nextAction;
+          const savedDoc = createdDoc?.doc;
+          setCreatedDoc(null);
+          if (next === 'send' && savedDoc) {
+            setSelectedInvoiceForSend(savedDoc as Invoice);
+            setCurrentTab('send_invoice');
+          }
+        }}
+      />
+
       {/* 5. Interactive Client Payment Portal Simulation */}
       <PaymentPortalModal
         invoice={paymentPortalInvoice}
@@ -1691,12 +1828,17 @@ export function App() {
 
       {/* 6. Quick Create Estimate Modal */}
       <CreateEstimateModal
+        key={editingEstimate?.id || 'new-estimate'}
         isOpen={isCreateEstimateOpen}
-        onClose={() => setIsCreateEstimateOpen(false)}
+        onClose={() => {
+          setIsCreateEstimateOpen(false);
+          setEditingEstimate(null);
+        }}
         clients={clients}
         items={items}
         companyProfile={companyProfile}
         onSaveEstimate={handleSaveEstimate}
+        editingEstimate={editingEstimate}
       />
 
       {/* 7. Quick Add Client Modal */}

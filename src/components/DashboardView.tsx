@@ -13,16 +13,25 @@ import {
   FileSpreadsheet, 
   ArrowRight,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  Calculator,
+  Percent,
+  TrendingDown
 } from 'lucide-react';
-import { Invoice, Estimate, InventoryItem, Activity, NavigationTab } from '../types';
+import { Invoice, Estimate, InventoryItem, Activity, NavigationTab, CompanyProfile, PurchaseRecord } from '../types';
 import { RevenueGrowthChart } from './RevenueGrowthChart';
+import { ProfitMarginCalculator } from './ProfitMarginCalculator';
+import { formatCurrencyAmount } from '../data/currencies';
+import { parseDateSafe } from '../utils/dateUtils';
 
 interface DashboardViewProps {
   invoices: Invoice[];
   estimates: Estimate[];
   items: InventoryItem[];
   activities: Activity[];
+  purchases?: PurchaseRecord[];
+  companyProfile?: CompanyProfile;
+  currencySymbol?: string;
   onNavigate: (tab: NavigationTab) => void;
   onOpenCreateInvoice: () => void;
   onOpenCreateEstimate: () => void;
@@ -36,6 +45,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   estimates,
   items,
   activities,
+  purchases = [],
+  companyProfile,
+  currencySymbol = companyProfile?.currencySymbol || '₦',
   onNavigate,
   onOpenCreateInvoice,
   onOpenCreateEstimate,
@@ -43,18 +55,65 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onViewInvoice,
   onPayInvoice,
 }) => {
-  // Calculations
+  // Calculations (all figures derived from live app state)
   const totalInvoicesCount = invoices.length;
   const paidInvoices = invoices.filter((i) => i.status === 'paid');
   const pendingInvoices = invoices.filter((i) => i.status === 'pending');
   const overdueInvoices = invoices.filter((i) => i.status === 'overdue');
+  const draftInvoices = invoices.filter((i) => i.status === 'draft' || i.status === 'pending_approval');
 
   const totalOutstanding = invoices
     .filter((i) => i.status === 'pending' || i.status === 'overdue')
     .reduce((sum, i) => sum + i.total, 0);
 
-  const revenueThisMonth = paidInvoices.reduce((sum, i) => sum + i.total, 0);
+  // Revenue scoped to the actual calendar month (compared to the previous month)
+  const now = new Date();
+  const paidInMonth = (monthOffset: number) => {
+    const ref = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+    return paidInvoices.filter((i) => {
+      const d = parseDateSafe(i.date);
+      return d !== null && d.getMonth() === ref.getMonth() && d.getFullYear() === ref.getFullYear();
+    });
+  };
+  const revenueThisMonth = paidInMonth(0).reduce((sum, i) => sum + i.total, 0);
+  const revenueLastMonth = paidInMonth(-1).reduce((sum, i) => sum + i.total, 0);
+  const revenueGrowthPct =
+    revenueLastMonth > 0
+      ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100)
+      : null;
+  const totalCollectedAllTime = paidInvoices.reduce((sum, i) => sum + i.total, 0);
   const lowStockCount = items.filter((i) => i.status === 'low' || i.status === 'out').length;
+
+  // Real status distribution for the donut chart (percent of total invoices)
+  const statusPct = (count: number) =>
+    totalInvoicesCount > 0 ? Number(((count / totalInvoicesCount) * 100).toFixed(1)) : 0;
+  const paidPct = statusPct(paidInvoices.length);
+  const pendingPct = statusPct(pendingInvoices.length);
+  const overduePct = statusPct(overdueInvoices.length);
+  const otherCount = totalInvoicesCount - paidInvoices.length - pendingInvoices.length - overdueInvoices.length;
+  const otherPct = statusPct(otherCount);
+
+  // Realized Gross Profit Snapshot
+  const itemCostMap = new Map<string, number>();
+  items.forEach((it) => {
+    if (typeof it.costPrice === 'number') {
+      itemCostMap.set(it.name.toLowerCase().trim(), it.costPrice);
+      if (it.sku) itemCostMap.set(it.sku.toLowerCase().trim(), it.costPrice);
+      itemCostMap.set(it.id, it.costPrice);
+    }
+  });
+
+  const totalPaidRevenue = paidInvoices.reduce((sum, i) => sum + i.total, 0);
+  const totalEstimatedCOGS = paidInvoices.reduce((sum, inv) => {
+    return sum + inv.items.reduce((itemSum, line) => {
+      const descKey = line.description.toLowerCase().trim();
+      const unitCost = itemCostMap.get(descKey) ?? (line.unitPrice * 0.35);
+      return itemSum + (line.qty * unitCost);
+    }, 0);
+  }, 0);
+
+  const totalGrossProfit = totalPaidRevenue - totalEstimatedCOGS;
+  const grossProfitMargin = totalPaidRevenue > 0 ? (totalGrossProfit / totalPaidRevenue) * 100 : 0;
 
   return (
     <div id="dashboard-container" className="p-6 md:p-8 space-y-8 max-w-7xl mx-auto">
@@ -109,9 +168,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="text-3xl font-black text-slate-900 font-mono-data">
               {totalInvoicesCount}
             </span>
-            <span className="text-xs font-semibold text-emerald-600 flex items-center">
-              <TrendingUp className="w-3 h-3 mr-0.5" /> +8%
-            </span>
+            {overdueInvoices.length > 0 ? (
+              <span className="text-xs font-semibold text-rose-600 flex items-center">
+                <AlertCircle className="w-3 h-3 mr-0.5" /> {overdueInvoices.length} Overdue
+              </span>
+            ) : draftInvoices.length > 0 ? (
+              <span className="text-xs font-semibold text-slate-400 flex items-center">
+                <FileText className="w-3 h-3 mr-0.5" /> {draftInvoices.length} Drafts
+              </span>
+            ) : null}
           </div>
           <div className="mt-2 text-xs text-slate-500 flex items-center justify-between">
             <span>{paidInvoices.length} Paid • {pendingInvoices.length} Pending</span>
@@ -135,7 +200,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-black text-slate-900 font-mono-data">
-              ₦{totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrencyAmount(totalOutstanding, currencySymbol)}
             </span>
           </div>
           <div className="mt-2 text-xs text-amber-700 font-medium flex items-center gap-1.5">
@@ -160,14 +225,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-black text-slate-900 font-mono-data">
-              ₦{revenueThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrencyAmount(revenueThisMonth, currencySymbol)}
             </span>
-            <span className="text-xs font-semibold text-emerald-600 flex items-center">
-              <TrendingUp className="w-3 h-3 mr-0.5" /> +12%
-            </span>
+            {revenueGrowthPct !== null ? (
+              <span
+                className={`text-xs font-semibold flex items-center ${
+                  revenueGrowthPct >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                }`}
+              >
+                {revenueGrowthPct >= 0 ? (
+                  <TrendingUp className="w-3 h-3 mr-0.5" />
+                ) : (
+                  <TrendingDown className="w-3 h-3 mr-0.5" />
+                )}
+                {revenueGrowthPct >= 0 ? '+' : ''}{revenueGrowthPct}%
+              </span>
+            ) : null}
           </div>
           <div className="mt-2 text-xs text-slate-500">
-            Target: ₦20,000 (76% achieved)
+            All-time collected: {formatCurrencyAmount(totalCollectedAllTime, currencySymbol, false)}
           </div>
         </div>
 
@@ -192,7 +268,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-2 text-xs text-slate-500 flex items-center justify-between">
             <span>Requires replenishment</span>
-            <ArrowRight className="w-3.5 h-3.5 text-rose-400 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
           </div>
         </div>
       </div>
@@ -203,6 +279,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="lg:col-span-2">
           <RevenueGrowthChart
             invoices={invoices}
+            currencySymbol={currencySymbol}
             onNavigateToReports={() => onNavigate('reports')}
             onNavigateToInvoices={() => onNavigate('invoices')}
           />
@@ -225,10 +302,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     fill="none"
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
-                  {/* Paid Segment (Emerald) */}
+                  {/* Paid Segment (Emerald) — real share of invoices */}
                   <path
                     className="stroke-emerald-500"
-                    strokeDasharray="60, 100"
+                    strokeDasharray={`${paidPct} ${100 - paidPct}`}
                     strokeWidth="4"
                     fill="none"
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
@@ -236,8 +313,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {/* Pending Segment (Amber) */}
                   <path
                     className="stroke-amber-500"
-                    strokeDasharray="25, 100"
-                    strokeDashoffset="-60"
+                    strokeDasharray={`${pendingPct} ${100 - pendingPct}`}
+                    strokeDashoffset={-paidPct}
                     strokeWidth="4"
                     fill="none"
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
@@ -245,12 +322,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {/* Overdue Segment (Rose) */}
                   <path
                     className="stroke-rose-500"
-                    strokeDasharray="15, 100"
-                    strokeDashoffset="-85"
+                    strokeDasharray={`${overduePct} ${100 - overduePct}`}
+                    strokeDashoffset={-(paidPct + pendingPct)}
                     strokeWidth="4"
                     fill="none"
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
+                  {/* Drafts / Other Segment (Slate) */}
+                  {otherPct > 0 && (
+                    <path
+                      className="stroke-slate-300"
+                      strokeDasharray={`${otherPct} ${100 - otherPct}`}
+                      strokeDashoffset={-(paidPct + pendingPct + overduePct)}
+                      strokeWidth="4"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  )}
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center text-center">
                   <span className="text-2xl font-black text-slate-900 font-mono-data">
@@ -271,7 +359,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span>Paid ({paidInvoices.length})</span>
                 </span>
                 <span className="font-mono font-bold text-slate-900">
-                  ₦{paidInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
+                  {formatCurrencyAmount(paidInvoices.reduce((a, b) => a + b.total, 0), currencySymbol, false)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-700">
@@ -280,7 +368,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span>Pending ({pendingInvoices.length})</span>
                 </span>
                 <span className="font-mono font-bold text-slate-900">
-                  ₦{pendingInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
+                  {formatCurrencyAmount(pendingInvoices.reduce((a, b) => a + b.total, 0), currencySymbol, false)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-700">
@@ -289,9 +377,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span>Overdue ({overdueInvoices.length})</span>
                 </span>
                 <span className="font-mono font-bold text-slate-900">
-                  ₦{overdueInvoices.reduce((a, b) => a + b.total, 0).toLocaleString()}
+                  {formatCurrencyAmount(overdueInvoices.reduce((a, b) => a + b.total, 0), currencySymbol, false)}
                 </span>
               </div>
+              {otherCount > 0 && (
+                <div className="flex items-center justify-between text-slate-700">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+                    <span>Drafts ({otherCount})</span>
+                  </span>
+                  <span className="font-mono font-bold text-slate-900">
+                    {formatCurrencyAmount(draftInvoices.reduce((a, b) => a + b.total, 0), currencySymbol, false)}
+                  </span>
+                </div>
+              )}
+              {totalInvoicesCount === 0 && (
+                <p className="text-[11px] text-slate-400 text-center pt-1">
+                  No invoices yet — your pipeline will appear here.
+                </p>
+              )}
             </div>
           </div>
 
@@ -303,6 +407,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Real-time Profit Margin & COGS Analytics Calculator */}
+      <ProfitMarginCalculator
+        invoices={invoices}
+        items={items}
+        purchases={purchases}
+        currencySymbol={currencySymbol}
+        onNavigateToInvoices={() => onNavigate('invoices')}
+        onNavigateToItems={() => onNavigate('items')}
+        onNavigateToPurchases={() => onNavigate('purchases')}
+      />
 
       {/* Bottom Grid: Recent Invoices & Live Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -335,7 +450,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {invoices.slice(0, 5).map((inv) => (
+                {invoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center">
+                      <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-slate-500">No invoices yet</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Create your first invoice and it will show up here.
+                      </p>
+                      <button
+                        onClick={onOpenCreateInvoice}
+                        className="mt-3 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                      >
+                        Create Invoice
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                invoices.slice(0, 5).map((inv) => (
                   <tr key={inv.id} className="hover:bg-slate-50/70 transition-colors group">
                     <td className="py-3 font-mono font-bold text-blue-600">
                       {inv.invoiceNumber}
@@ -347,7 +479,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {inv.dueDate}
                     </td>
                     <td className="py-3 text-right font-mono font-bold text-slate-900">
-                      ₦{inv.total.toFixed(2)}
+                      {formatCurrencyAmount(inv.total, currencySymbol)}
                     </td>
                     <td className="py-3 text-center">
                       <span
@@ -384,7 +516,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </div>
                     </td>
                   </tr>
-                ))}
+                ))
+                )}
               </tbody>
             </table>
           </div>
@@ -399,7 +532,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             <div className="space-y-4">
-              {activities.map((act) => (
+              {activities.length === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-xs font-bold text-slate-500">No activity yet</p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Invoice creations, payments, and conversions will be logged here in real time.
+                  </p>
+                </div>
+              ) : activities.map((act) => (
                 <div key={act.id} className="flex items-start gap-3 text-xs group">
                   <div className="mt-0.5 shrink-0">
                     {act.type === 'payment' && (
@@ -451,7 +591,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
             >
               <FileSpreadsheet className="w-4 h-4 text-slate-500" />
-              <span>Review Estimates Pipeline</span>
+              <span>Review Estimates Pipeline ({estimates.length})</span>
             </button>
           </div>
         </div>

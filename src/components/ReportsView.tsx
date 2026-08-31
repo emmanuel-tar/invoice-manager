@@ -12,18 +12,23 @@ import {
   Sparkles,
   PieChart
 } from 'lucide-react';
-import { Invoice, Client, TaxRate } from '../types';
+import { Invoice, Client, TaxRate, CompanyProfile } from '../types';
+import { formatCurrencyAmount } from '../data/currencies';
 
 interface ReportsViewProps {
   invoices: Invoice[];
   clients: Client[];
   taxRates: TaxRate[];
+  companyProfile?: CompanyProfile;
+  currencySymbol?: string;
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
   invoices,
   clients,
   taxRates,
+  companyProfile,
+  currencySymbol = companyProfile?.currencySymbol || '₦',
 }) => {
   const [timeRange, setTimeRange] = useState<'month' | 'quarter' | 'ytd' | 'all'>('ytd');
 
@@ -138,7 +143,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <DollarSign className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-2xl font-black text-slate-900 font-mono-data mt-2">
-            ${totalBilled.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {formatCurrencyAmount(totalBilled, currencySymbol)}
           </div>
           <div className="text-xs text-emerald-600 font-semibold flex items-center gap-1 mt-1">
             <TrendingUp className="w-3 h-3" /> +14.2% YoY Growth
@@ -151,7 +156,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <DollarSign className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-black text-emerald-700 font-mono-data mt-2">
-            ${totalCollected.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {formatCurrencyAmount(totalCollected, currencySymbol)}
           </div>
           <div className="text-xs text-slate-500 mt-1">
             {Math.round((totalCollected / (totalBilled || 1)) * 100)}% collection efficiency
@@ -164,7 +169,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <DollarSign className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-2xl font-black text-blue-700 font-mono-data mt-2">
-            ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {formatCurrencyAmount(totalOutstanding, currencySymbol)}
           </div>
           <div className="text-xs text-slate-500 mt-1">
             Avg DSO: 18.4 days
@@ -177,7 +182,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <Percent className="w-4 h-4 text-slate-600" />
           </div>
           <div className="text-2xl font-black text-slate-900 font-mono-data mt-2">
-            ${totalTaxAccrued.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {formatCurrencyAmount(totalTaxAccrued, currencySymbol)}
           </div>
           <div className="text-xs text-slate-500 mt-1">
             Accrued sales & VAT payable
@@ -223,7 +228,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                       >
                         {/* Tooltip on hover */}
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-slate-900 text-white text-[9px] font-mono py-0.5 px-1.5 rounded whitespace-nowrap z-20 pointer-events-none">
-                          Billed: ${d.billed.toLocaleString()}
+                          Billed: {formatCurrencyAmount(d.billed, currencySymbol, false)}
                         </div>
                       </div>
 
@@ -233,7 +238,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                         className="w-full max-w-[14px] bg-emerald-500 rounded-t-sm group-hover:bg-emerald-600 transition-all relative"
                       >
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-slate-900 text-white text-[9px] font-mono py-0.5 px-1.5 rounded whitespace-nowrap z-20 pointer-events-none">
-                          Paid: ${d.collected.toLocaleString()}
+                          Paid: {formatCurrencyAmount(d.collected, currencySymbol, false)}
                         </div>
                       </div>
                     </div>
@@ -267,7 +272,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                         <span>{client.name}</span>
                       </span>
                       <span className="font-mono font-bold text-slate-900">
-                        ${client.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {formatCurrencyAmount(client.totalRevenue, currencySymbol)}
                       </span>
                     </div>
 
