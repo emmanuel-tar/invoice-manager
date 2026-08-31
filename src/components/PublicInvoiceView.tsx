@@ -94,7 +94,7 @@ export const PublicInvoiceView: React.FC<PublicInvoiceViewProps> = ({
     );
   }
 
-  const currencySymbol = companyProfile.currencySymbol || '$';
+  const currencySymbol = companyProfile.currencySymbol || '₦';
   const isPaid = invoice.status === 'paid' || Boolean(justPaidReceiptNumber);
   const isOverdue = invoice.status === 'overdue';
   const paymentToken = invoice.payment_token || invoice.paymentToken || 'pay_tok_secured';

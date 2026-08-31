@@ -40,11 +40,11 @@ export const SendInvoiceView: React.FC<SendInvoiceViewProps> = ({
   const [cc, setCc] = useState<string>('');
   const [showCc, setShowCc] = useState<boolean>(false);
   const [subject, setSubject] = useState<string>(
-    `Invoice ${invoice.invoiceNumber} from ${companyProfile.name} - $${invoice.total.toFixed(2)}`
+    `Invoice ${invoice.invoiceNumber} from ${companyProfile.name} - ₦${invoice.total.toFixed(2)}`
   );
   const [message, setMessage] = useState<string>(
     `Dear ${invoice.clientName},\n\n` +
-    `Thank you for your partnership. Please find attached invoice ${invoice.invoiceNumber} for the total amount of $${invoice.total.toFixed(2)}, due on ${invoice.dueDate}.\n\n` +
+    `Thank you for your partnership. Please find attached invoice ${invoice.invoiceNumber} for the total amount of ₦${invoice.total.toFixed(2)}, due on ${invoice.dueDate}.\n\n` +
     `You can review the invoice details or pay securely online using the link below.\n\n` +
     `Best regards,\n${companyProfile.name}\n${companyProfile.phone}`
   );
@@ -57,19 +57,19 @@ export const SendInvoiceView: React.FC<SendInvoiceViewProps> = ({
   const handleTemplateChange = (tmpl: 'standard' | 'reminder' | 'overdue') => {
     setEmailTemplate(tmpl);
     if (tmpl === 'standard') {
-      setSubject(`Invoice ${invoice.invoiceNumber} from ${companyProfile.name} - $${invoice.total.toFixed(2)}`);
+      setSubject(`Invoice ${invoice.invoiceNumber} from ${companyProfile.name} - ₦${invoice.total.toFixed(2)}`);
       setMessage(
-        `Dear ${invoice.clientName},\n\nPlease find attached invoice ${invoice.invoiceNumber} for the amount of $${invoice.total.toFixed(2)}, due on ${invoice.dueDate}.\n\nBest regards,\n${companyProfile.name}`
+        `Dear ${invoice.clientName},\n\nPlease find attached invoice ${invoice.invoiceNumber} for the amount of ₦${invoice.total.toFixed(2)}, due on ${invoice.dueDate}.\n\nBest regards,\n${companyProfile.name}`
       );
     } else if (tmpl === 'reminder') {
       setSubject(`Friendly Reminder: Invoice ${invoice.invoiceNumber} is due on ${invoice.dueDate}`);
       setMessage(
-        `Hi ${invoice.clientName},\n\nThis is a friendly reminder that invoice ${invoice.invoiceNumber} ($${invoice.total.toFixed(2)}) is due for payment on ${invoice.dueDate}.\n\nPlease let us know if you have any questions.\n\nBest,\n${companyProfile.name}`
+        `Hi ${invoice.clientName},\n\nThis is a friendly reminder that invoice ${invoice.invoiceNumber} (₦${invoice.total.toFixed(2)}) is due for payment on ${invoice.dueDate}.\n\nPlease let us know if you have any questions.\n\nBest,\n${companyProfile.name}`
       );
     } else if (tmpl === 'overdue') {
       setSubject(`URGENT: Overdue Payment Notice - Invoice ${invoice.invoiceNumber}`);
       setMessage(
-        `Dear ${invoice.clientName},\n\nOur records indicate that invoice ${invoice.invoiceNumber} ($${invoice.total.toFixed(2)}) was due on ${invoice.dueDate} and remains unpaid.\n\nPlease remit payment immediately via the secure link below to avoid service interruption.\n\nSincerely,\n${companyProfile.name}`
+        `Dear ${invoice.clientName},\n\nOur records indicate that invoice ${invoice.invoiceNumber} (₦${invoice.total.toFixed(2)}) was due on ${invoice.dueDate} and remains unpaid.\n\nPlease remit payment immediately via the secure link below to avoid service interruption.\n\nSincerely,\n${companyProfile.name}`
       );
     }
   };
@@ -332,7 +332,7 @@ export const SendInvoiceView: React.FC<SendInvoiceViewProps> = ({
                   <div className="text-right">
                     <div className="text-[10px] text-slate-400 uppercase font-mono">Amount Due</div>
                     <div className="font-black text-slate-900 text-lg font-mono-data">
-                      ${invoice.total.toFixed(2)}
+                      ₦{invoice.total.toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -342,7 +342,7 @@ export const SendInvoiceView: React.FC<SendInvoiceViewProps> = ({
                   {invoice.items.slice(0, 3).map((it) => (
                     <div key={it.id} className="flex justify-between">
                       <span className="truncate max-w-[200px]">{it.description} (x{it.qty})</span>
-                      <span className="font-mono text-slate-900 font-semibold">${it.total.toFixed(2)}</span>
+                      <span className="font-mono text-slate-900 font-semibold">₦{it.total.toFixed(2)}</span>
                     </div>
                   ))}
                   {invoice.items.length > 3 && (
@@ -361,7 +361,7 @@ export const SendInvoiceView: React.FC<SendInvoiceViewProps> = ({
                       className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold rounded-lg text-xs shadow-sm flex items-center justify-center gap-2 transition-all"
                     >
                       <CreditCard className="w-4 h-4" />
-                      <span>View & Pay Invoice Online (${invoice.total.toFixed(2)})</span>
+                      <span>View & Pay Invoice Online (₦{invoice.total.toFixed(2)})</span>
                     </button>
                     <p className="text-[10px] text-slate-400 text-center mt-1.5">
                       Supports Visa, MasterCard, Amex, Apple Pay, & ACH Wire

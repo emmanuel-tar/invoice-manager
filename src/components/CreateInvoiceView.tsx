@@ -159,6 +159,11 @@ export const CreateInvoiceView: React.FC<CreateInvoiceViewProps> = ({
   const buildInvoiceObject = (status: 'draft' | 'pending'): Invoice => {
     const existingToken = initialInvoiceData?.payment_token || initialInvoiceData?.paymentToken;
     const paymentToken = existingToken || generatePaymentToken(invoiceNumber, currentClient?.name);
+    // When editing an existing invoice (e.g. already paid or converted),
+    // keep its original status instead of resetting it to draft/pending.
+    const effectiveStatus = initialInvoiceData?.id && initialInvoiceData.status
+      ? initialInvoiceData.status
+      : status;
 
     return {
       id: initialInvoiceData?.id || `inv-${Date.now()}`,
@@ -176,7 +181,7 @@ export const CreateInvoiceView: React.FC<CreateInvoiceViewProps> = ({
       taxAmount: totalTaxAmount,
       discount: discountAmount,
       total: grandTotal,
-      status: status,
+      status: effectiveStatus,
       notes,
       estimateRef: estimateRef || undefined,
       createdAt: initialInvoiceData?.createdAt || new Date().toISOString(),
@@ -399,7 +404,7 @@ export const CreateInvoiceView: React.FC<CreateInvoiceViewProps> = ({
                             </option>
                             {items.map((catItem) => (
                               <option key={catItem.id} value={catItem.id}>
-                                {catItem.name} (${catItem.unitPrice.toFixed(2)})
+                                {catItem.name} (₦{catItem.unitPrice.toFixed(2)})
                               </option>
                             ))}
                           </select>
@@ -418,7 +423,7 @@ export const CreateInvoiceView: React.FC<CreateInvoiceViewProps> = ({
 
                       <td className="py-2.5 px-2">
                         <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">$</span>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">₦</span>
                           <input
                             type="number"
                             min="0"
@@ -442,7 +447,7 @@ export const CreateInvoiceView: React.FC<CreateInvoiceViewProps> = ({
                       </td>
 
                       <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900">
-                        ${item.total.toFixed(2)}
+                        ₦{item.total.toFixed(2)}
                       </td>
 
                       <td className="py-2.5 pl-2 text-center">
@@ -496,7 +501,7 @@ export const CreateInvoiceView: React.FC<CreateInvoiceViewProps> = ({
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between text-slate-600">
                 <span>Subtotal</span>
-                <span className="font-mono font-bold text-slate-900">${subtotal.toFixed(2)}</span>
+                <span className="font-mono font-bold text-slate-900">₦{subtotal.toFixed(2)}</span>
               </div>
 
               {/* Discount Input */}
@@ -518,19 +523,19 @@ export const CreateInvoiceView: React.FC<CreateInvoiceViewProps> = ({
               {discountAmount > 0 && (
                 <div className="flex items-center justify-between text-emerald-700">
                   <span>Discount Applied</span>
-                  <span className="font-mono font-bold">-${discountAmount.toFixed(2)}</span>
+                  <span className="font-mono font-bold">-₦{discountAmount.toFixed(2)}</span>
                 </div>
               )}
 
               <div className="flex items-center justify-between text-slate-600">
                 <span>Estimated Taxes</span>
-                <span className="font-mono font-bold text-slate-900">${totalTaxAmount.toFixed(2)}</span>
+                <span className="font-mono font-bold text-slate-900">₦{totalTaxAmount.toFixed(2)}</span>
               </div>
 
               <div className="pt-3 border-t border-slate-200 flex items-baseline justify-between">
                 <span className="font-black text-slate-900 text-sm">Grand Total</span>
                 <span className="font-mono font-black text-2xl text-blue-600">
-                  ${grandTotal.toFixed(2)}
+                  ₦{grandTotal.toFixed(2)}
                 </span>
               </div>
             </div>

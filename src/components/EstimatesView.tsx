@@ -14,6 +14,7 @@ import {
   Zap, 
   Sparkles,
   ArrowUpRight,
+  Pencil,
   X,
   Calculator,
   User,
@@ -29,6 +30,7 @@ interface EstimatesViewProps {
   onOpenCreateEstimate: () => void;
   onAddQuickEstimate: (estimate: Omit<Estimate, 'id' | 'estimateNumber'>) => void;
   onOpenConvertModal: (estimate: Estimate) => void;
+  onEditEstimate: (estimate: Estimate) => void;
   onDeleteEstimate: (estimateId: string) => void;
   onViewEstimate: (estimate: Estimate) => void;
   onSendEstimate: (estimate: Estimate) => void;
@@ -44,6 +46,7 @@ export const EstimatesView: React.FC<EstimatesViewProps> = ({
   onDeleteEstimate,
   onViewEstimate,
   onSendEstimate,
+  onEditEstimate,
 }) => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -317,6 +320,15 @@ export const EstimatesView: React.FC<EstimatesViewProps> = ({
                           className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors"
                         >
                           <Eye className="w-4 h-4" />
+                        </button>
+
+                        {/* Edit Button — available for ALL statuses (including accepted/converted) */}
+                        <button
+                          onClick={() => onEditEstimate(est)}
+                          title="Edit Estimate"
+                          className="p-1 text-slate-400 hover:text-indigo-600 rounded transition-colors"
+                        >
+                          <Pencil className="w-4 h-4" />
                         </button>
 
                         <button

@@ -152,7 +152,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
     const mid = payments.filter((p) => p.amount >= 3000 && p.amount < 10000);
     const small = payments.filter((p) => p.amount < 3000);
     return {
-      major: { label: 'High Value (≥₦10,000 / $10,000+)', list: major, total: major.reduce((acc, p) => acc + p.amount, 0) },
+      major: { label: 'High Value (≥₦10,000)', list: major, total: major.reduce((acc, p) => acc + p.amount, 0) },
       mid: { label: 'Standard Mid Tier (₦3,000 - ₦9,999)', list: mid, total: mid.reduce((acc, p) => acc + p.amount, 0) },
       small: { label: 'Micro & Small Settlements (<₦3,000)', list: small, total: small.reduce((acc, p) => acc + p.amount, 0) },
     };

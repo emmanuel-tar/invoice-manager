@@ -17,6 +17,7 @@ interface CreateEstimateModalProps {
   items: InventoryItem[];
   companyProfile: CompanyProfile;
   onSaveEstimate: (estimate: Estimate) => void;
+  editingEstimate?: Estimate | null;
 }
 
 export const CreateEstimateModal: React.FC<CreateEstimateModalProps> = ({
@@ -26,29 +27,41 @@ export const CreateEstimateModal: React.FC<CreateEstimateModalProps> = ({
   items,
   companyProfile,
   onSaveEstimate,
+  editingEstimate,
 }) => {
   if (!isOpen) return null;
 
+  const isEditing = Boolean(editingEstimate?.id);
   const today = new Date().toISOString().split('T')[0];
   const defaultExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-  const [clientId, setClientId] = useState<string>(clients[0]?.id || '');
-  const [estimateNumber, setEstimateNumber] = useState<string>(`EST-2023-${Math.floor(100 + Math.random() * 900)}`);
-  const [date, setDate] = useState<string>(today);
-  const [expiryDate, setExpiryDate] = useState<string>(defaultExpiry);
-  const [notes, setNotes] = useState<string>('Valid for 30 days from issue date. Net 30 terms upon acceptance.');
-  const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [clientId, setClientId] = useState<string>(
+    editingEstimate?.clientName
+      ? clients.find(c => c.name === editingEstimate.clientName)?.id || clients[0]?.id || ''
+      : clients[0]?.id || ''
+  );
+  const [estimateNumber, setEstimateNumber] = useState<string>(
+    editingEstimate?.estimateNumber || `EST-2023-${Math.floor(100 + Math.random() * 900)}`
+  );
+  const [date, setDate] = useState<string>(editingEstimate?.date || today);
+  const [expiryDate, setExpiryDate] = useState<string>(editingEstimate?.expiryDate || defaultExpiry);
+  const [notes, setNotes] = useState<string>(editingEstimate?.notes || 'Valid for 30 days from issue date. Net 30 terms upon acceptance.');
+  const [discountPercent, setDiscountPercent] = useState<number>(editingEstimate?.discount || 0);
 
-  const [lineItems, setLineItems] = useState<LineItem[]>([
-    {
-      id: 'line-1',
-      description: 'Web Design Services',
-      qty: 1,
-      unitPrice: 1500,
-      taxRate: 10,
-      total: 1650,
-    },
-  ]);
+  const [lineItems, setLineItems] = useState<LineItem[]>(
+    editingEstimate?.items && editingEstimate.items.length > 0
+      ? editingEstimate.items
+      : [
+          {
+            id: 'line-1',
+            description: 'Web Design Services',
+            qty: 1,
+            unitPrice: 1500,
+            taxRate: 10,
+            total: 1650,
+          },
+        ]
+  );
 
   const selectedClient = clients.find((c) => c.id === clientId) || clients[0];
 
@@ -110,7 +123,7 @@ export const CreateEstimateModal: React.FC<CreateEstimateModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const newEstimate: Estimate = {
-      id: `est-${Date.now()}`,
+      id: editingEstimate?.id || `est-${Date.now()}`,
       estimateNumber,
       clientName: selectedClient.name,
       clientEmail: selectedClient.email,
@@ -123,7 +136,9 @@ export const CreateEstimateModal: React.FC<CreateEstimateModalProps> = ({
       taxAmount,
       discount: discountAmount,
       total: grandTotal,
-      status: 'sent',
+      // Preserve the existing status (incl. accepted / converted) when editing
+      status: editingEstimate?.status || 'sent',
+      convertedToInvoiceId: editingEstimate?.convertedToInvoiceId,
       notes,
     };
     onSaveEstimate(newEstimate);
@@ -139,7 +154,7 @@ export const CreateEstimateModal: React.FC<CreateEstimateModalProps> = ({
               <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Create New Estimate / Quote</h3>
+              <h3 className="text-base font-bold text-slate-900">{isEditing ? 'Edit Estimate / Quote' : 'Create New Estimate / Quote'}</h3>
               <p className="text-xs text-slate-500 font-mono">Precision estimate with line item pricing</p>
             </div>
           </div>
@@ -215,7 +230,7 @@ export const CreateEstimateModal: React.FC<CreateEstimateModalProps> = ({
                     >
                       <option value="" disabled>⚡ Fill from Catalog...</option>
                       {items.map((it) => (
-                        <option key={it.id} value={it.id}>{it.name} (${it.unitPrice})</option>
+                        <option key={it.id} value={it.id}>{it.name} (₦{it.unitPrice})</option>
                       ))}
                     </select>
                   </div>
@@ -232,7 +247,7 @@ export const CreateEstimateModal: React.FC<CreateEstimateModalProps> = ({
                       />
                     </div>
                     <div className="col-span-4">
-                      <span className="text-[10px] text-slate-400 block font-mono">Unit Price ($)</span>
+                      <span className="text-[10px] text-slate-400 block font-mono">Unit Price (₦)</span>
                       <input
                         type="number"
                         min="0"
@@ -244,7 +259,7 @@ export const CreateEstimateModal: React.FC<CreateEstimateModalProps> = ({
                     </div>
                     <div className="col-span-4 text-right">
                       <span className="text-[10px] text-slate-400 block font-mono">Total</span>
-                      <span className="font-mono font-bold text-slate-900 text-xs">${item.total.toFixed(2)}</span>
+                      <span className="font-mono font-bold text-slate-900 text-xs">₦{item.total.toFixed(2)}</span>
                     </div>
                     <div className="col-span-1 text-center">
                       <button
@@ -275,11 +290,11 @@ export const CreateEstimateModal: React.FC<CreateEstimateModalProps> = ({
           <div className="p-3.5 bg-slate-900 text-white rounded-lg flex items-center justify-between">
             <div>
               <div className="text-[10px] font-mono text-blue-400 uppercase font-semibold">Estimated Total</div>
-              <div className="text-xl font-black font-mono-data mt-0.5">${grandTotal.toFixed(2)}</div>
+              <div className="text-xl font-black font-mono-data mt-0.5">₦{grandTotal.toFixed(2)}</div>
             </div>
             <div className="text-right text-[11px] text-slate-300 font-mono">
-              <div>Subtotal: ${subtotal.toFixed(2)}</div>
-              <div>Taxes: ${taxAmount.toFixed(2)}</div>
+              <div>Subtotal: ₦{subtotal.toFixed(2)}</div>
+              <div>Taxes: ₦{taxAmount.toFixed(2)}</div>
             </div>
           </div>
 

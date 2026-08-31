@@ -403,7 +403,7 @@ export const CreateRecurringScheduleModal: React.FC<CreateRecurringScheduleModal
                             </option>
                             {itemsCatalog.map((cat) => (
                               <option key={cat.id} value={cat.id}>
-                                {cat.name} (${cat.unitPrice})
+                                {cat.name} (₦{cat.unitPrice})
                               </option>
                             ))}
                           </select>
@@ -445,7 +445,7 @@ export const CreateRecurringScheduleModal: React.FC<CreateRecurringScheduleModal
                     </div>
 
                     <div>
-                      <span className="text-[10px] font-medium text-slate-500 block mb-0.5">Unit Price ($)</span>
+                      <span className="text-[10px] font-medium text-slate-500 block mb-0.5">Unit Price (₦)</span>
                       <input
                         type="number"
                         min="0"
@@ -481,10 +481,10 @@ export const CreateRecurringScheduleModal: React.FC<CreateRecurringScheduleModal
               <span className="text-slate-600 font-medium">Recurring Cycle Total:</span>
               <div className="text-right">
                 <span className="text-base font-bold text-slate-900 font-mono">
-                  ${total.toFixed(2)}
+                  ₦{total.toFixed(2)}
                 </span>
                 <span className="text-[10px] text-slate-400 block font-mono">
-                  (Subtotal ${subtotal.toFixed(2)} + Tax ${taxAmount.toFixed(2)})
+                  (Subtotal ₦{subtotal.toFixed(2)} + Tax ₦{taxAmount.toFixed(2)})
                 </span>
               </div>
             </div>

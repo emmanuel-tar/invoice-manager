@@ -17,6 +17,10 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      // Pin the port so localStorage data is never "lost" when Vite
+      // falls back to 5174/5175 (each port has its own browser storage).
+      port: 5173,
+      strictPort: true,
     },
   };
 });

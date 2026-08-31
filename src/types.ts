@@ -20,18 +20,33 @@ export type NavigationTab =
   | 'purchase_orders'
   | 'other_income'
   | 'expenses'
-  | 'approvals';
-
-// === RBAC (Role-Based Access Control) ===
-export type Role = 'owner' | 'admin' | 'accountant' | 'staff';
-
-export interface WorkflowUser {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-  avatarColor?: string;
-}
+  | 'approvals'
+  | 'multi_currency'
+  | 'tax_settings'
+  | 'reminders'
+  | 'bank_reconciliation'
+  | 'audit_logs'
+  | 'payment_gateways'
+  | 'email_automation'
+  | 'sms_notifications'
+  | 'time_tracking'
+  | 'projects'
+  | 'late_fees'
+  | 'template_builder'
+  | 'e_signature'
+  | 'bank_feeds'
+  | 'inventory_advanced'
+  | 'team_collaboration'
+  | 'cashflow_forecast'
+  | 'budget_management'
+  | 'asset_management'
+  | 'document_management'
+  | 'subscription_management'
+  | 'ai_features'
+  | 'pos'
+  | 'api_webhooks'
+  | 'client_feedback'
+  | 'custom_dashboard';
 
 // === Approval Workflow ===
 export type ApprovalStatus = 'pending_approval' | 'approved' | 'rejected';
@@ -467,20 +482,96 @@ export interface CreditNote {
   approval?: ApprovalInfo;
 }
 
-// Bank Account Information
-export interface BankAccountInfo {
+export interface PaymentGateway {
   id: string;
-  bankName: string;
-  accountName: string;
-  accountNumber: string;
-  sortCode?: string;
-  iban?: string;
-  swiftBic?: string;
-  isPrimary: boolean;
-  paymentInstructions?: string;
+  name: string;
+  type: 'paystack' | 'flutterwave' | 'stripe' | 'manual' | 'bank_transfer' | 'mobile_money' | 'crypto';
+  apiKey?: string;
+  secretKey?: string;
+  isActive: boolean;
+  supportedCurrencies: string[];
+  transactionFee: number;
+  createdAt: string;
 }
 
-// Extended Application Settings
+export interface PaymentTransaction {
+  id: string;
+  reference: string;
+  gatewayId: string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'success' | 'failed' | 'refunded';
+  clientName: string;
+  clientEmail: string;
+  createdAt: string;
+  metadata?: Record<string, any>;
+}
+
+export interface BankTransaction {
+  id: string;
+  reference: string;
+  date: string;
+  description: string;
+  amount: number;
+  type: 'credit' | 'debit';
+  status: 'pending' | 'cleared' | 'matched' | 'unmatched';
+  invoiceId?: string;
+  paymentId?: string;
+  matchedAmount?: number;
+  reconciliationNotes?: string;
+}
+
+export interface AutomatedReminder {
+  id: string;
+  type: 'invoice_overdue' | 'payment_due' | 'recurring_schedule' | 'credit_note_issued' | 'custom';
+  enabled: boolean;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'custom';
+  beforeDays?: number;
+  template?: string;
+  channels: ('email' | 'sms' | 'in_app' | 'push')[];
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  action: string;
+  userId: string;
+  userName: string;
+  entityType: 'invoice' | 'client' | 'payment' | 'expense' | 'user';
+  entityId: string;
+  changes?: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+export interface CurrencyConfig {
+  code: string;
+  symbol: string;
+  name: string;
+  decimalPlaces: number;
+  isCrypto?: boolean;
+  exchangeRate?: number;
+  lastUpdated?: string;
+}
+
+export interface TaxCalculation {
+  amount: number;
+  rate: number;
+  taxType: 'vat' | 'gst' | 'sales_tax' | 'withholding' | 'custom';
+  jurisdiction?: string;
+  exemptAmount?: number;
+  exemptStatus?: boolean;
+}
+
+export interface SmartMatch {
+  transactionId: string;
+  invoiceId?: string;
+  confidence: number;
+  pattern: 'exact' | 'partial' | 'fuzzy' | 'manual';
+  suggestions?: Array<{ invoiceId: string; amount: number; reference: string; confidence: number; reason: string }>;
+  autoMatch?: boolean;
+  notes?: string;
+}
 export interface AppSettings {
   // 1. Customize Home Screen (Visual Layout | Show/Hide Tabs)
   hiddenTabs: NavigationTab[];
@@ -589,5 +680,281 @@ export interface AppSettings {
     stampUrl?: string;
     watermarkUrl?: string;
   };
+  imageAssets: {
+    logoUrl?: string;
+    signatureUrl?: string;
+    stampUrl?: string;
+    watermarkUrl?: string;
+  };
+}
+
+// === Payment Gateway Integration ===
+export interface PaymentGateway {
+  id: string;
+  name: string;
+  type: 'paystack' | 'flutterwave' | 'stripe' | 'custom';
+  apiKey: string;
+  secretKey: string;
+  webhookSecret?: string;
+  isActive: boolean;
+  supportedCurrencies: string[];
+  transactionFee: number;
+  createdAt: string;
+}
+
+export interface PaymentTransaction {
+  id: string;
+  invoiceId: string;
+  gatewayId: string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'success' | 'failed' | 'refunded';
+  reference: string;
+  customerEmail: string;
+  gatewayResponse?: Record<string, any>;
+  createdAt: string;
+}
+
+// === Email & SMS Automation ===
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  type: 'invoice' | 'reminder' | 'thank_you' | 'overdue' | 'estimate' | 'custom';
+  isActive: boolean;
+}
+
+export interface AutomationRule {
+  id: string;
+  name: string;
+  trigger: 'invoice_created' | 'invoice_sent' | 'payment_received' | 'invoice_overdue' | 'estimate_accepted' | 'before_due';
+  action: 'send_email' | 'send_sms' | 'apply_late_fee' | 'create_task';
+  templateId?: string;
+  delay?: number; // hours
+  isActive: boolean;
+}
+
+export interface SmsConfig {
+  provider: 'twilio' | 'termii' | 'africastalking';
+  apiKey: string;
+  senderId: string;
+  isEnabled: boolean;
+}
+
+// === Time Tracking ===
+export interface TimeEntry {
+  id: string;
+  projectId: string;
+  userId: string;
+  description: string;
+  startTime: string;
+  endTime?: string;
+  duration: number; // minutes
+  isBillable: boolean;
+  hourlyRate: number;
+  invoiced: boolean;
+  invoiceId?: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  clientId: string;
+  status: 'active' | 'completed' | 'on_hold' | 'cancelled';
+  budget?: number;
+  hourlyRate: number;
+  startDate: string;
+  endDate?: string;
+  description?: string;
+}
+
+// === Late Fee Configuration ===
+export interface LateFeeRule {
+  id: string;
+  name: string;
+  feeType: 'flat' | 'percentage' | 'compound';
+  amount: number;
+  gracePeriodDays: number;
+  maxFee?: number;
+  frequency: 'once' | 'daily' | 'weekly' | 'monthly';
+  isActive: boolean;
+}
+
+// === E-Signature ===
+export interface SignatureDocument {
+  id: string;
+  documentType: 'invoice' | 'estimate' | 'contract';
+  documentId: string;
+  signatureData?: string;
+  signedAt?: string;
+  signerName?: string;
+  signerEmail?: string;
+  status: 'pending' | 'signed' | 'expired';
+  expiresAt: string;
+}
+
+// === Bank Reconciliation ===
+export interface BankTransaction {
+  id: string;
+  accountId: string;
+  date: string;
+  description: string;
+  amount: number;
+  type: 'credit' | 'debit';
+  reference?: string;
+  matched: boolean;
+  matchedInvoiceId?: string;
+  category?: string;
+}
+
+// === Inventory Advanced ===
+export interface Warehouse {
+  id: string;
+  name: string;
+  location: string;
+  isDefault: boolean;
+}
+
+export interface StockTransfer {
+  id: string;
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  itemId: string;
+  quantity: number;
+  date: string;
+  status: 'pending' | 'in_transit' | 'completed';
+  notes?: string;
+}
+
+// === Team Collaboration ===
+export interface TeamComment {
+  id: string;
+  entityType: 'invoice' | 'client' | 'payment' | 'project';
+  entityId: string;
+  userId: string;
+  userName: string;
+  content: string;
+  createdAt: string;
+  mentions?: string[];
+}
+
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  details?: string;
+  createdAt: string;
+}
+
+// === Cashflow Forecast ===
+export interface CashflowForecast {
+  id: string;
+  period: string;
+  predictedIncome: number;
+  predictedExpenses: number;
+  netCashflow: number;
+  confidence: number;
+  createdAt: string;
+}
+
+// === Budget Management ===
+export interface Budget {
+  id: string;
+  name: string;
+  category: string;
+  amount: number;
+  spent: number;
+  period: 'monthly' | 'quarterly' | 'yearly';
+  startDate: string;
+  endDate: string;
+  alerts: boolean;
+  alertThreshold: number; // percentage
+}
+
+// === Asset Management ===
+export interface Asset {
+  id: string;
+  name: string;
+  category: string;
+  purchasePrice: number;
+  currentValue: number;
+  purchaseDate: string;
+  depreciationRate: number;
+  depreciationMethod: 'straight_line' | 'declining_balance';
+  status: 'active' | 'disposed' | 'sold';
+  serialNumber?: string;
+}
+
+// === Document Management ===
+export interface DocumentFile {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  entityType?: string;
+  entityId?: string;
+  uploadedBy: string;
+  createdAt: string;
+  tags?: string[];
+}
+
+// === Subscription Management ===
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  currency: string;
+  interval: 'monthly' | 'yearly';
+  features: string[];
+  maxInvoices: number;
+  maxClients: number;
+  isActive: boolean;
+}
+
+// === POS ===
+export interface POSTransaction {
+  id: string;
+  items: { itemId: string; quantity: number; price: number }[];
+  total: number;
+  tax: number;
+  paymentMethod: 'cash' | 'card' | 'transfer';
+  cashierId: string;
+  createdAt: string;
+}
+
+// === API & Webhooks ===
+export interface WebhookConfig {
+  id: string;
+  url: string;
+  events: string[];
+  secret: string;
+  isActive: boolean;
+  lastTriggered?: string;
+}
+
+// === Client Feedback ===
+export interface ClientFeedback {
+  id: string;
+  clientId: string;
+  invoiceId?: string;
+  rating: number;
+  comment?: string;
+  nps: number;
+  createdAt: string;
+}
+
+// === AI Features ===
+export interface OCRResult {
+  id: string;
+  documentType: 'receipt' | 'invoice';
+  rawText: string;
+  extractedData: Record<string, any>;
+  confidence: number;
+  createdAt: string;
 }
 

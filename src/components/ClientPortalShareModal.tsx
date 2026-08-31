@@ -123,7 +123,7 @@ export const ClientPortalShareModal: React.FC<ClientPortalShareModalProps> = ({
             <div className="text-right font-mono">
               <div className="text-[10px] uppercase font-bold text-slate-400">Outstanding Balance</div>
               <div className="text-sm font-black text-slate-900">
-                ${client.outstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                ₦{client.outstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
             </div>
           </div>

@@ -23,13 +23,14 @@ import {
   FileSpreadsheet,
   Receipt
 } from 'lucide-react';
-import { Client, Invoice, CompanyProfile } from '../types';
+import { Client, Invoice, Estimate, CompanyProfile } from '../types';
 import { PaymentPortalModal } from './PaymentPortalModal';
 import { InvoicePrintPreviewModal } from './InvoicePrintPreviewModal';
 
 interface ClientPortalViewProps {
   client: Client;
   invoices: Invoice[];
+  estimates?: Estimate[];
   companyProfile: CompanyProfile;
   onPayInvoice: (invoice: Invoice) => void;
   onExitPreview?: () => void;
@@ -39,6 +40,7 @@ interface ClientPortalViewProps {
 export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   client,
   invoices,
+  estimates = [],
   companyProfile,
   onPayInvoice,
   onExitPreview,
@@ -57,6 +59,15 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         inv.clientEmail.toLowerCase() === client.email.toLowerCase()
     );
   }, [invoices, client]);
+
+  // Filter estimates strictly for this client (read-only quotes shown in the portal)
+  const clientEstimates = useMemo(() => {
+    return estimates.filter(
+      (est) =>
+        est.clientName.toLowerCase() === client.name.toLowerCase() ||
+        (est.clientEmail || '').toLowerCase() === client.email.toLowerCase()
+    );
+  }, [estimates, client]);
 
   // Derived financial metrics
   const totalInvoiced = useMemo(() => {
@@ -99,7 +110,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
   // Export Statement of Account as CSV
   const handleExportStatementCSV = () => {
-    const headers = ['Invoice Number', 'Issue Date', 'Due Date', 'Status', 'Total ($)', 'Notes'];
+    const headers = ['Invoice Number', 'Issue Date', 'Due Date', 'Status', 'Total (₦)', 'Notes'];
     const rows = clientInvoices.map((inv) => [
       inv.invoiceNumber,
       inv.date,
@@ -222,7 +233,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
               >
                 <CreditCard className="w-4 h-4" />
-                <span>Pay Open Invoices (${currentOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
+                <span>Pay Open Invoices (₦{currentOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
               </button>
             )}
           </div>
@@ -240,7 +251,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 currentOutstanding > 0 ? 'text-amber-600' : 'text-emerald-600'
               }`}
             >
-              ${currentOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₦{currentOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
               {currentOutstanding > 0 ? (
@@ -263,7 +274,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               Total Paid to Date
             </div>
             <div className="text-3xl font-black text-slate-900 font-mono-data mt-2">
-              ${totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₦{totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-xs text-slate-500 mt-1">
               {clientInvoices.filter((i) => i.status === 'paid').length} settled payments
@@ -276,13 +287,66 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               Total Lifetime Billed
             </div>
             <div className="text-3xl font-black text-slate-900 font-mono-data mt-2">
-              ${totalInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₦{totalInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-xs text-slate-500 mt-1">
               {clientInvoices.length} total invoice records
             </div>
           </div>
         </div>
+
+        {/* Estimates / Quotes Section (read-only) */}
+        {clientEstimates.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center gap-2">
+              <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+              <h3 className="text-sm font-bold text-slate-900">Estimates / Quotes ({clientEstimates.length})</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50/70 border-b border-slate-100 font-mono text-[11px] text-slate-500 uppercase tracking-wider">
+                    <th className="py-3 px-5 font-bold">Estimate #</th>
+                    <th className="py-3 px-4 font-bold">Issued</th>
+                    <th className="py-3 px-4 font-bold">Valid Until</th>
+                    <th className="py-3 px-4 font-bold">Status</th>
+                    <th className="py-3 px-5 font-bold text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {clientEstimates.map((est) => (
+                    <tr key={est.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3.5 px-5 font-mono font-bold text-slate-900">
+                        {est.estimateNumber}
+                        {est.convertedToInvoiceId && (
+                          <span className="ml-2 text-[10px] text-slate-400 font-normal">(Converted to {est.convertedToInvoiceId})</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-600">{est.date}</td>
+                      <td className="py-3.5 px-4 font-mono text-slate-600">{est.expiryDate}</td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider ${
+                            est.status === 'accepted'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : est.status === 'rejected'
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}
+                        >
+                          {est.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-5 text-right font-mono font-black text-slate-900 text-sm">
+                        ₦{est.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Invoices Ledger Section */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -398,7 +462,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         </td>
 
                         <td className="py-4 px-4 text-right font-mono font-black text-slate-900 text-sm">
-                          ${inv.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ₦{inv.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
 
                         <td className="py-4 px-5 text-right space-x-2">

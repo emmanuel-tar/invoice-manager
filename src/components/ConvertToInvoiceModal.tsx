@@ -184,11 +184,11 @@ export const ConvertToInvoiceModal: React.FC<ConvertToInvoiceModalProps> = ({
           <div className="p-3.5 rounded-lg bg-slate-900 text-white flex items-center justify-between">
             <div>
               <div className="text-[10px] font-mono text-blue-400 uppercase font-semibold">Total to Invoice</div>
-              <div className="text-xl font-black font-mono-data mt-0.5">${estimate.total.toFixed(2)}</div>
+              <div className="text-xl font-black font-mono-data mt-0.5">₦{estimate.total.toFixed(2)}</div>
             </div>
             <div className="text-right text-[11px] text-slate-300">
-              <div>Subtotal: ${estimate.subtotal.toFixed(2)}</div>
-              <div>Taxes: ${estimate.taxAmount.toFixed(2)}</div>
+              <div>Subtotal: ₦{estimate.subtotal.toFixed(2)}</div>
+              <div>Taxes: ₦{estimate.taxAmount.toFixed(2)}</div>
             </div>
           </div>
         </div>

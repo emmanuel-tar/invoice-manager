@@ -16,6 +16,7 @@ import {
   CreditCard,
   Printer,
   Repeat,
+  Pencil,
   Zap,
   Calendar,
   User,
@@ -51,6 +52,7 @@ interface InvoicesViewProps {
   onOpenCreateInvoice: () => void;
   onViewInvoice: (invoice: Invoice) => void;
   onSendInvoice: (invoice: Invoice) => void;
+  onEditInvoice: (invoice: Invoice) => void;
   onMarkAsPaid: (invoiceId: string) => void;
   onDuplicateInvoice: (invoice: Invoice) => void;
   onDeleteInvoice: (invoiceId: string) => void;
@@ -78,6 +80,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
   onOpenCreateInvoice,
   onViewInvoice,
   onSendInvoice,
+  onEditInvoice,
   onMarkAsPaid,
   onDuplicateInvoice,
   onDeleteInvoice,
@@ -1779,6 +1782,16 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                             className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           >
                             <Eye className="w-4 h-4" />
+                          </button>
+
+                          {/* Edit Button — available for ALL statuses (including paid/converted) */}
+                          <button
+                            id={`btn-edit-${inv.id}`}
+                            onClick={() => onEditInvoice(inv)}
+                            title="Edit Invoice"
+                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          >
+                            <Pencil className="w-4 h-4" />
                           </button>
 
                           {/* Send Email Button */}

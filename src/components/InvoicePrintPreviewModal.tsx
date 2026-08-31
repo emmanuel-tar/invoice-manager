@@ -1,16 +1,20 @@
-import React from 'react';
-import { 
-  X, 
-  Printer, 
-  Download, 
-  Send, 
-  CheckCircle, 
-  Building, 
-  Layers, 
-  CreditCard,
-  Check
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  X,
+  Printer,
+  Send,
+  FileDown,
+  ImageDown,
+  Loader2,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
+
+const MIN_ZOOM = 0.35;
+const MAX_ZOOM = 1.5;
 import { Invoice, Estimate, CompanyProfile } from '../types';
+import { DocumentSheet } from './DocumentSheet';
+import { exportElementAsImage, exportElementAsPdf, printElement } from '../utils/documentExport';
 
 interface InvoicePrintPreviewModalProps {
   document: Invoice | Estimate | null;
@@ -29,6 +33,28 @@ export const InvoicePrintPreviewModal: React.FC<InvoicePrintPreviewModalProps> =
   onClose,
   onSendEmail,
 }) => {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [busyAction, setBusyAction] = useState<'print' | 'pdf' | 'image' | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [dims, setDims] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+
+  // Measure the natural (unscaled) sheet size and default the zoom to fit the viewport width
+  useEffect(() => {
+    if (!isOpen || !sheetRef.current) return;
+    const w = sheetRef.current.offsetWidth;
+    const h = sheetRef.current.offsetHeight;
+    if (w > 0) setDims({ w, h });
+    const available = (stageRef.current?.clientWidth ?? w) - 32;
+    setZoom(Math.max(MIN_ZOOM, Math.min(1, available / w)));
+  }, [isOpen, document]);
+
+  const fitToWidth = () => {
+    const w = dims.w || sheetRef.current?.offsetWidth || 0;
+    const available = (stageRef.current?.clientWidth ?? w) - 32;
+    if (w > 0) setZoom(Math.max(MIN_ZOOM, Math.min(1, available / w)));
+  };
+
   if (!isOpen || !document) return null;
 
   const isInvoice = type === 'invoice';
@@ -36,43 +62,57 @@ export const InvoicePrintPreviewModal: React.FC<InvoicePrintPreviewModalProps> =
   const estimateDoc = document as Estimate;
 
   const docNumber = isInvoice ? invoiceDoc.invoiceNumber : estimateDoc.estimateNumber;
-  const docTitle = isInvoice ? 'INVOICE' : 'ESTIMATE / QUOTE';
-  const docDueDate = isInvoice ? invoiceDoc.dueDate : estimateDoc.expiryDate;
-  const docStatus = isInvoice ? invoiceDoc.status : estimateDoc.status;
 
-  const handlePrint = () => {
-    window.print();
+  const runAction = async (action: 'print' | 'pdf' | 'image') => {
+    if (!sheetRef.current || busyAction) return;
+    setBusyAction(action);
+    // Capture at 100% zoom for a crisp, unscaled export
+    const prevZoom = zoom;
+    setZoom(1);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    try {
+      if (action === 'print') {
+        await printElement(sheetRef.current, `${docNumber} - ${companyProfile.name}`);
+      } else if (action === 'pdf') {
+        await exportElementAsPdf(sheetRef.current, `${docNumber}.pdf`);
+      } else {
+        await exportElementAsImage(sheetRef.current, `${docNumber}.png`);
+      }
+    } catch (err) {
+      console.error('Document export failed:', err);
+    } finally {
+      setBusyAction(null);
+      setZoom(prevZoom);
+    }
   };
 
-  const handleDownload = () => {
-    window.print();
-  };
+  const btnClass =
+    'flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 my-8 overflow-hidden">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto animate-in fade-in duration-150 print-scope">
+      <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 my-8 overflow-hidden print-scope flex flex-col max-h-[92vh]">
         {/* Top Control Bar (Hidden on print) */}
-        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between no-print">
+        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between no-print flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="font-mono font-bold text-sm text-blue-400">{docNumber}</span>
-            <span className="text-slate-400 text-xs">• Document Preview</span>
+            <span className="text-slate-400 text-xs">• Document Preview (A4)</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition-colors"
-            >
-              <Printer className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => runAction('print')} disabled={busyAction !== null} className={btnClass}>
+              {busyAction === 'print' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
               <span>Print</span>
             </button>
 
-            <button
-              onClick={handleDownload}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
+            <button onClick={() => runAction('pdf')} disabled={busyAction !== null} className={btnClass}>
+              {busyAction === 'pdf' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
               <span>Download PDF</span>
+            </button>
+
+            <button onClick={() => runAction('image')} disabled={busyAction !== null} className={btnClass}>
+              {busyAction === 'image' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageDown className="w-3.5 h-3.5" />}
+              <span>Save as Image</span>
             </button>
 
             {onSendEmail && (
@@ -97,164 +137,66 @@ export const InvoicePrintPreviewModal: React.FC<InvoicePrintPreviewModalProps> =
           </div>
         </div>
 
-        {/* Printable Document Sheet Container */}
-        <div className="p-8 md:p-12 space-y-8 bg-white text-slate-900 print-container">
-          {/* Header & Logo */}
-          <div className="flex justify-between items-start border-b border-slate-200 pb-8">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-sm">
-                  IP
-                </div>
-                <div>
-                  <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                    {companyProfile.name}
-                  </h1>
-                  <p className="text-xs text-slate-500 font-mono">Tax ID: {companyProfile.taxId}</p>
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-slate-500 whitespace-pre-line leading-relaxed">
-                {companyProfile.address}
-                <br />
-                {companyProfile.phone}
+        {/* Zoom Controls */}
+        <div className="px-6 py-2 bg-white border-b border-slate-200 flex items-center gap-2 no-print">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">Zoom</span>
+          <button
+            onClick={() => setZoom((z) => Math.max(MIN_ZOOM, Math.round((z - 0.1) * 100) / 100))}
+            disabled={busyAction !== null}
+            className="p-1 rounded-md hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-40"
+            aria-label="Zoom out"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <input
+            type="range"
+            min={Math.round(MIN_ZOOM * 100)}
+            max={Math.round(MAX_ZOOM * 100)}
+            value={Math.round(zoom * 100)}
+            onChange={(e) => setZoom(Number(e.target.value) / 100)}
+            className="w-32 sm:w-44 accent-blue-600 cursor-pointer"
+            aria-label="Zoom level"
+          />
+          <button
+            onClick={() => setZoom((z) => Math.min(MAX_ZOOM, Math.round((z + 0.1) * 100) / 100))}
+            disabled={busyAction !== null}
+            className="p-1 rounded-md hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-40"
+            aria-label="Zoom in"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <span className="text-xs font-mono font-bold text-slate-600 w-10 text-right">{Math.round(zoom * 100)}%</span>
+          <button
+            onClick={fitToWidth}
+            className="text-[11px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wide"
+          >
+            Fit
+          </button>
+          <span className="ml-auto text-[10px] text-slate-400 font-mono hidden md:block">
+            Scroll inside the preview to view the full sheet
+          </span>
+        </div>
+
+        {/* Printable A4 Document Sheet (scrollable, zoomable) */}
+        <div ref={stageRef} className="flex-1 min-h-0 overflow-auto bg-slate-200/70 p-4 md:p-8 print-scope">
+          <div
+            style={
+              dims.w > 0
+                ? { width: dims.w * zoom, height: dims.h * zoom, margin: '0 auto' }
+                : { width: 'fit-content', margin: '0 auto' }
+            }
+          >
+            <div
+              style={
+                dims.w > 0
+                  ? { width: dims.w, height: dims.h, transform: `scale(${zoom})`, transformOrigin: 'top left' }
+                  : undefined
+              }
+            >
+              <div ref={sheetRef} className="shadow-xl w-fit">
+                <DocumentSheet document={document} type={type} companyProfile={companyProfile} />
               </div>
             </div>
-
-            <div className="text-right">
-              <div className="text-3xl font-black text-slate-900 font-mono tracking-tight">
-                {docTitle}
-              </div>
-              <div className="text-sm font-mono font-bold text-blue-600 mt-1">
-                {docNumber}
-              </div>
-              <div className="mt-2">
-                <span
-                  className={`inline-block px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    docStatus === 'paid' || docStatus === 'accepted'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : docStatus === 'overdue' || docStatus === 'rejected'
-                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                      : 'bg-amber-50 text-amber-700 border border-amber-200'
-                  }`}
-                >
-                  {docStatus}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Bill To & Dates Grid */}
-          <div className="grid grid-cols-2 gap-8 text-xs">
-            <div>
-              <span className="font-bold text-slate-400 uppercase tracking-wider font-mono text-[10px] block mb-1.5">
-                Billed To:
-              </span>
-              <div className="font-bold text-slate-900 text-sm">{document.clientName}</div>
-              <div className="text-slate-500 mt-1">{document.clientEmail}</div>
-              <div className="text-slate-500 mt-0.5 whitespace-pre-line leading-relaxed">
-                {document.clientAddress}
-              </div>
-            </div>
-
-            <div className="space-y-2 text-right">
-              <div>
-                <span className="text-slate-400 font-mono text-[10px] uppercase font-bold mr-2">Issue Date:</span>
-                <span className="font-mono font-bold text-slate-900">{document.date}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-mono text-[10px] uppercase font-bold mr-2">
-                  {isInvoice ? 'Due Date:' : 'Valid Until:'}
-                </span>
-                <span className="font-mono font-bold text-slate-900">{docDueDate}</span>
-              </div>
-              {isInvoice && invoiceDoc.estimateRef && (
-                <div>
-                  <span className="text-slate-400 font-mono text-[10px] uppercase font-bold mr-2">Quote Reference:</span>
-                  <span className="font-mono font-bold text-blue-600">{invoiceDoc.estimateRef}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Line Items Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-y border-slate-200 bg-slate-50/80 text-slate-600 font-mono uppercase tracking-wider text-[10px]">
-                <tr>
-                  <th className="py-3 px-3 font-bold">Item & Description</th>
-                  <th className="py-3 px-3 font-bold text-center">Qty</th>
-                  <th className="py-3 px-3 font-bold text-right">Rate</th>
-                  <th className="py-3 px-3 font-bold text-center">Tax %</th>
-                  <th className="py-3 px-3 font-bold text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {document.items.map((item, idx) => (
-                  <tr key={item.id || idx}>
-                    <td className="py-3 px-3 font-medium text-slate-900">
-                      {item.description}
-                    </td>
-                    <td className="py-3 px-3 text-center font-mono">{item.qty}</td>
-                    <td className="py-3 px-3 text-right font-mono">${item.unitPrice.toFixed(2)}</td>
-                    <td className="py-3 px-3 text-center font-mono text-slate-500">{item.taxRate}%</td>
-                    <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
-                      ${item.total.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Summary & Bank Remittance */}
-          <div className="grid grid-cols-2 gap-8 pt-4 border-t border-slate-200 text-xs">
-            <div>
-              <span className="font-bold text-slate-400 uppercase tracking-wider font-mono text-[10px] block mb-1.5">
-                Payment Instructions & Bank Wire:
-              </span>
-              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1 text-slate-600 text-[11px]">
-                <div><span className="font-bold text-slate-800">Bank:</span> {companyProfile.bankName}</div>
-                <div><span className="font-bold text-slate-800">Account / IBAN:</span> {companyProfile.accountNumber}</div>
-                <div><span className="font-bold text-slate-800">Routing Code:</span> 12100024</div>
-              </div>
-
-              {document.notes && (
-                <div className="mt-3 text-[11px] text-slate-500 italic leading-relaxed">
-                  "{document.notes}"
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2 text-right">
-              <div className="flex justify-between text-slate-600">
-                <span>Subtotal:</span>
-                <span className="font-mono font-bold text-slate-900">${document.subtotal.toFixed(2)}</span>
-              </div>
-
-              {document.discount > 0 && (
-                <div className="flex justify-between text-emerald-700">
-                  <span>Discount:</span>
-                  <span className="font-mono font-bold">-${document.discount.toFixed(2)}</span>
-                </div>
-              )}
-
-              <div className="flex justify-between text-slate-600">
-                <span>Tax Amount:</span>
-                <span className="font-mono font-bold text-slate-900">${document.taxAmount.toFixed(2)}</span>
-              </div>
-
-              <div className="flex justify-between items-baseline pt-2 border-t border-slate-200 text-slate-900 font-black">
-                <span className="text-sm">Total Due ({companyProfile.currency}):</span>
-                <span className="text-xl font-mono text-blue-600">
-                  ${document.total.toFixed(2)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer Note */}
-          <div className="pt-8 border-t border-slate-100 text-center text-[10px] text-slate-400 font-mono">
-            Thank you for choosing {companyProfile.name} • Precision Ledger Certified Document
           </div>
         </div>
       </div>

@@ -107,7 +107,7 @@ export const PaymentPortalModal: React.FC<PaymentPortalModalProps> = ({
                 <div className="text-right">
                   <div className="text-[10px] text-slate-400 font-mono uppercase">Amount to Pay</div>
                   <div className="text-2xl font-black font-mono-data text-white">
-                    ${invoice.total.toFixed(2)}
+                    ₦{invoice.total.toFixed(2)}
                   </div>
                 </div>
               </div>
