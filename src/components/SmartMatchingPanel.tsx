@@ -30,12 +30,14 @@ export const SmartMatchingPanel: React.FC<SmartMatchingPanelProps> = ({
       ...transactions.map(t => ({ ...t, type: 'credit' as const })),
       ...payments.map(p => ({
         id: p.id,
+        accountId: 'acc_default',
         reference: p.paymentNumber,
         date: p.date,
         description: `Payment - ${p.clientName}`, 
         amount: p.amount,
         type: 'credit' as const,
-        status: 'pending' as const
+        status: 'pending' as const,
+        matched: false,
       }))
     ];
     

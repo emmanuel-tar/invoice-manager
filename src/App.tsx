@@ -82,6 +82,11 @@ import { OtherIncomeView } from './components/OtherIncomeView';
 import { ExpensesView } from './components/ExpensesView';
 import { DeliveryNotesView } from './components/DeliveryNotesView';
 import { CreditNotesView } from './components/CreditNotesView';
+import { BankReconciliationView } from './components/BankReconciliationView';
+import { TimeTrackingView } from './components/TimeTrackingView';
+import { ESignatureView } from './components/ESignatureView';
+import { LoginPage } from './components/LoginPage';
+import { StaffManagement } from './components/StaffManagement';
 
 // Modals
 import { ConvertToInvoiceModal } from './components/ConvertToInvoiceModal';
@@ -105,6 +110,12 @@ import {
   ensureInvoicePaymentToken,
   generatePaymentToken
 } from './utils/paymentTokenUtils';
+import {
+  getSession,
+  createSession,
+  clearSession,
+  updateSessionUser,
+} from './utils/sessionUtils';
 
 // Safety-net snapshot: a single consolidated copy of all persisted data.
 // If an individual storage key is ever missing (e.g. partially cleared),
@@ -190,6 +201,17 @@ export function App() {
   const [team, setTeam] = useState<WorkflowUser[]>(() => readWithSnapshot('invoicepro_team', initialTeam));
   const [currentUser, setCurrentUser] = useState<WorkflowUser>(() => readWithSnapshot('invoicepro_current_user', initialCurrentUser));
   const currentRole = currentUser?.role ?? 'owner';
+
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const session = getSession();
+    if (session) {
+      setCurrentUser(session.user);
+      return true;
+    }
+    return false;
+  });
+  const [isStaffManagementOpen, setIsStaffManagementOpen] = useState<boolean>(false);
 
   // Modal & View States
   const [selectedInvoiceForSend, setSelectedInvoiceForSend] = useState<Invoice | null>(null);
@@ -367,6 +389,22 @@ export function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // Authentication Handlers
+  const handleLogin = (user: WorkflowUser) => {
+    createSession(user);
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    showToast('Welcome back!', `Signed in as ${user.name}`);
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    setIsAuthenticated(false);
+    setCurrentUser(initialCurrentUser);
+    setCurrentTab('dashboard');
+    showToast('Signed out', 'You have been logged out successfully', 'info');
+  };
+
   // Activity Logger Helper
   const addActivity = (
     type: Activity['type'],
@@ -474,9 +512,13 @@ export function App() {
     if (currentUser?.id === userId) setCurrentUser((prev) => (prev ? { ...prev, role } : prev));
     showToast('Role Updated', 'Permission matrix refreshed for this member.');
   };
-  const handleAddTeamMember = (member: WorkflowUser) => {
-    setTeam((prev) => [...prev, member]);
-    showToast('Team Member Added', `${member.name} added to the workspace.`);
+  const handleAddTeamMember = (user: Omit<WorkflowUser, 'id'>) => {
+    const newUser: WorkflowUser = {
+      ...user,
+      id: `user-${Date.now()}`,
+    };
+    setTeam((prev) => [...prev, newUser]);
+    showToast('Team Member Added', `${user.name} has been added as ${user.role}`);
   };
   const handleRemoveTeamMember = (userId: string) => {
     if (userId === currentUser?.id) {
@@ -491,6 +533,34 @@ export function App() {
     if (!target) return;
     setCurrentUser(target);
     showToast('Role Switched', `Viewing as ${target.name} (${target.role}).`);
+  };
+
+  const handleUpdateTeamMember = (updatedUser: WorkflowUser) => {
+    setTeam((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+    if (updatedUser.id === currentUser.id) {
+      setCurrentUser(updatedUser);
+      updateSessionUser(updatedUser);
+    }
+    showToast('Team Member Updated', `${updatedUser.name}'s role has been updated`);
+  };
+
+  const handleDeleteTeamMember = (userId: string) => {
+    if (userId === currentUser?.id) {
+      showToast('Action Blocked', 'You cannot remove the active user.', 'error');
+      return;
+    }
+    const user = team.find((u) => u.id === userId);
+    setTeam((prev) => prev.filter((u) => u.id !== userId));
+    showToast('Team Member Removed', `${user?.name || 'User'} has been removed`, 'info');
+  };
+
+  const handleResetPassword = (userId: string) => {
+    const user = team.find((u) => u.id === userId);
+    showToast('Password Reset', `Reset link sent to ${user?.email || 'user'}`);
+  };
+
+  const handleInviteUser = (email: string, role: string) => {
+    showToast('Invitation Sent', `Invite sent to ${email} as ${role}`);
   };
 
   // --- Approval workflow helpers ---
@@ -1375,6 +1445,16 @@ export function App() {
     );
   }
 
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <LoginPage
+        onLogin={handleLogin}
+        team={team}
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen app-shell-bg font-sans antialiased text-slate-800 overflow-hidden">
       {/* Toast Notifications */}
@@ -1383,7 +1463,14 @@ export function App() {
       {/* Main Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
-        onSelectTab={setCurrentTab}
+        onSelectTab={(tab) => {
+          if (tab === 'staff_management') {
+            setIsStaffManagementOpen(true);
+          } else {
+            setCurrentTab(tab);
+            setIsStaffManagementOpen(false);
+          }
+        }}
         invoiceCount={invoices.length}
         recurringCount={recurringSchedules.length}
         estimateCount={estimates.length}
@@ -1398,6 +1485,8 @@ export function App() {
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
         pendingApprovalCount={approvalQueue.length}
         currentRole={currentRole}
+        isAuthenticated={isAuthenticated}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -1737,6 +1826,60 @@ export function App() {
               onRestoreFullBackup={handleRestoreFullBackup}
               onBulkImportClients={handleBulkImportClients}
               onBulkImportItems={handleBulkImportItems}
+            />
+          )}
+
+          {currentTab === 'bank_reconciliation' && (
+            <BankReconciliationView
+              invoices={invoices}
+              onMatchTransaction={(transactionId, invoiceId) => {
+                showToast('Transaction Matched', `Transaction matched to invoice ${invoiceId}`);
+              }}
+              onUnmatchTransaction={(transactionId) => {
+                showToast('Transaction Unmatched', 'Transaction has been unmatched');
+              }}
+            />
+          )}
+
+          {currentTab === 'time_tracking' && (
+            <TimeTrackingView
+              onAddTimeEntry={(entry) => {
+                showToast('Time Entry Added', `${entry.description} - ${entry.duration} minutes`);
+              }}
+              onUpdateProject={(project) => {
+                showToast('Project Created', `${project.name} has been created`);
+              }}
+              onDeleteProject={(projectId) => {
+                showToast('Project Deleted', 'Project has been removed');
+              }}
+              onInvoiceProject={(projectId) => {
+                showToast('Invoice Created', 'Invoice generated from project time entries');
+              }}
+            />
+          )}
+
+          {currentTab === 'e_signature' && (
+            <ESignatureView
+              invoices={invoices}
+              estimates={estimates}
+              onSendForSignature={(docId, docType, signerEmail, signerName) => {
+                showToast('Signature Requested', `Document sent to ${signerEmail} for signature`);
+              }}
+              onRevokeSignature={(docId) => {
+                showToast('Signature Revoked', 'Signature request has been cancelled');
+              }}
+            />
+          )}
+
+          {isStaffManagementOpen && (
+            <StaffManagement
+              team={team}
+              currentUser={currentUser}
+              onAddUser={handleAddTeamMember}
+              onUpdateUser={handleUpdateTeamMember}
+              onDeleteUser={handleDeleteTeamMember}
+              onResetPassword={handleResetPassword}
+              onInviteUser={handleInviteUser}
             />
           )}
         </main>

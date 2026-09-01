@@ -24,7 +24,11 @@ import {
   Truck,
   FileMinus,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Building2,
+  Clock,
+  PenTool,
+  LogOut,
 } from 'lucide-react';
 import { NavigationTab } from '../types';
 
@@ -45,6 +49,8 @@ interface SidebarProps {
   onOpenOnboarding: () => void;
   pendingApprovalCount?: number;
   currentRole?: string;
+  isAuthenticated?: boolean;
+  onLogout?: () => void;
 }
 
 interface NavItem {
@@ -81,6 +87,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenOnboarding,
   pendingApprovalCount = 0,
   currentRole = 'Owner',
+  isAuthenticated = false,
+  onLogout,
 }) => {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     payments: true,
@@ -258,6 +266,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ]
         },
         {
+          id: 'bank_reconciliation' as NavigationTab,
+          label: 'Bank Reconciliation',
+          icon: Building2,
+          badge: null,
+        },
+        {
           id: 'reports' as NavigationTab,
           label: 'Reports & Audits',
           icon: BarChart3,
@@ -267,6 +281,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'settings' as NavigationTab,
           label: 'Settings',
           icon: Settings,
+          badge: null,
+        },
+      ]
+    },
+    {
+      groupTitle: 'Productivity & Workflow',
+      items: [
+        {
+          id: 'time_tracking' as NavigationTab,
+          label: 'Time Tracking',
+          icon: Clock,
+          badge: null,
+        },
+        {
+          id: 'projects' as NavigationTab,
+          label: 'Projects',
+          icon: FileSpreadsheet,
+          badge: null,
+        },
+        {
+          id: 'e_signature' as NavigationTab,
+          label: 'E-Signatures',
+          icon: PenTool,
+          badge: null,
+        },
+        {
+          id: 'staff_management' as NavigationTab,
+          label: 'Staff Management',
+          icon: Users,
           badge: null,
         },
       ]
@@ -412,14 +455,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="text-[10px] text-slate-400 font-mono truncate max-w-[110px]">Active Ledger</div>
             </div>
           </div>
-          <button
-            id="btn-sidebar-quick-settings"
-            onClick={() => onSelectTab('settings')}
-            title="Settings"
-            className="p-1.5 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-colors"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              id="btn-sidebar-quick-settings"
+              onClick={() => onSelectTab('settings')}
+              title="Settings"
+              className="p-1.5 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            {onLogout && (
+              <button
+                id="btn-sidebar-logout"
+                onClick={onLogout}
+                title="Sign Out"
+                className="p-1.5 text-slate-400 hover:text-red-400 rounded-md hover:bg-red-500/10 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </aside>

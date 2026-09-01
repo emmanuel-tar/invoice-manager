@@ -46,7 +46,8 @@ export type NavigationTab =
   | 'pos'
   | 'api_webhooks'
   | 'client_feedback'
-  | 'custom_dashboard';
+  | 'custom_dashboard'
+  | 'staff_management';
 
 // === Approval Workflow ===
 export type ApprovalStatus = 'pending_approval' | 'approved' | 'rejected';
@@ -485,9 +486,10 @@ export interface CreditNote {
 export interface PaymentGateway {
   id: string;
   name: string;
-  type: 'paystack' | 'flutterwave' | 'stripe' | 'manual' | 'bank_transfer' | 'mobile_money' | 'crypto';
+  type: 'paystack' | 'flutterwave' | 'stripe' | 'manual' | 'bank_transfer' | 'mobile_money' | 'crypto' | 'custom';
   apiKey?: string;
   secretKey?: string;
+  webhookSecret?: string;
   isActive: boolean;
   supportedCurrencies: string[];
   transactionFee: number;
@@ -498,17 +500,21 @@ export interface PaymentTransaction {
   id: string;
   reference: string;
   gatewayId: string;
+  invoiceId?: string;
   amount: number;
   currency: string;
   status: 'pending' | 'success' | 'failed' | 'refunded';
-  clientName: string;
-  clientEmail: string;
+  clientName?: string;
+  clientEmail?: string;
+  customerEmail?: string;
   createdAt: string;
   metadata?: Record<string, any>;
+  gatewayResponse?: Record<string, any>;
 }
 
 export interface BankTransaction {
   id: string;
+  accountId: string;
   reference: string;
   date: string;
   description: string;
@@ -518,7 +524,10 @@ export interface BankTransaction {
   invoiceId?: string;
   paymentId?: string;
   matchedAmount?: number;
+  matched?: boolean;
+  matchedInvoiceId?: string;
   reconciliationNotes?: string;
+  category?: string;
 }
 
 export interface AutomatedReminder {
@@ -680,39 +689,6 @@ export interface AppSettings {
     stampUrl?: string;
     watermarkUrl?: string;
   };
-  imageAssets: {
-    logoUrl?: string;
-    signatureUrl?: string;
-    stampUrl?: string;
-    watermarkUrl?: string;
-  };
-}
-
-// === Payment Gateway Integration ===
-export interface PaymentGateway {
-  id: string;
-  name: string;
-  type: 'paystack' | 'flutterwave' | 'stripe' | 'custom';
-  apiKey: string;
-  secretKey: string;
-  webhookSecret?: string;
-  isActive: boolean;
-  supportedCurrencies: string[];
-  transactionFee: number;
-  createdAt: string;
-}
-
-export interface PaymentTransaction {
-  id: string;
-  invoiceId: string;
-  gatewayId: string;
-  amount: number;
-  currency: string;
-  status: 'pending' | 'success' | 'failed' | 'refunded';
-  reference: string;
-  customerEmail: string;
-  gatewayResponse?: Record<string, any>;
-  createdAt: string;
 }
 
 // === Email & SMS Automation ===
@@ -792,20 +768,6 @@ export interface SignatureDocument {
   signerEmail?: string;
   status: 'pending' | 'signed' | 'expired';
   expiresAt: string;
-}
-
-// === Bank Reconciliation ===
-export interface BankTransaction {
-  id: string;
-  accountId: string;
-  date: string;
-  description: string;
-  amount: number;
-  type: 'credit' | 'debit';
-  reference?: string;
-  matched: boolean;
-  matchedInvoiceId?: string;
-  category?: string;
 }
 
 // === Inventory Advanced ===
@@ -948,13 +910,26 @@ export interface ClientFeedback {
   createdAt: string;
 }
 
-// === AI Features ===
-export interface OCRResult {
+// === Bank Account Info ===
+export interface BankAccountInfo {
   id: string;
-  documentType: 'receipt' | 'invoice';
-  rawText: string;
-  extractedData: Record<string, any>;
-  confidence: number;
-  createdAt: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  currency: string;
+  isDefault: boolean;
+}
+
+// === RBAC & Workflow ===
+export type Role = 'owner' | 'admin' | 'accountant' | 'staff';
+
+export interface WorkflowUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  avatar?: string;
+  isActive: boolean;
+  lastLogin?: string;
 }
 
